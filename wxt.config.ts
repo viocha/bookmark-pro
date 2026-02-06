@@ -17,8 +17,7 @@ export default defineConfig({
     commands: {
       'toggle-sidebar': {
         suggested_key: {
-          default: 'Alt+B',
-          mac: 'MacCtrl+B',
+          default: 'Alt+Shift+B',
         },
         description: '切换书签管理侧栏',
       },

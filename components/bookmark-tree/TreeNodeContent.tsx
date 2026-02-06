@@ -328,7 +328,7 @@ export function TreeNodeContent({
       </span>
       <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
       {folder && item.childCount > 0 && (
-        <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+        <span className="text-[10px] text-muted-foreground ml-auto shrink-0 pr-1">
           {item.childCount}
         </span>
       )}

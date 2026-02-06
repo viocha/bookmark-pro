@@ -20,23 +20,31 @@ export default defineBackground(() => {
   });
 
   // ── Keyboard shortcut: toggle sidebar ──
-  const sidePanelOpenWindows = new Set<number>();
+  // 通过 port 连接追踪侧栏状态（跨浏览器兼容）
+  const sidePanelPorts = new Map<number, chrome.runtime.Port>();
 
-  // Track side panel state via events (Chrome 141+/142+)
-  try {
-    chrome.sidePanel.onOpened.addListener((info) => {
-      sidePanelOpenWindows.add(info.windowId);
-    });
-    chrome.sidePanel.onClosed.addListener((info) => {
-      sidePanelOpenWindows.delete(info.windowId);
-    });
-  } catch {
-    // Events not available in older Chrome versions
-  }
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === 'sidepanel') {
+      port.onMessage.addListener((msg) => {
+        if (msg.windowId != null) {
+          sidePanelPorts.set(msg.windowId, port);
+        }
+      });
+      port.onDisconnect.addListener(() => {
+        for (const [windowId, p] of sidePanelPorts) {
+          if (p === port) {
+            sidePanelPorts.delete(windowId);
+            break;
+          }
+        }
+      });
+    }
+  });
 
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === 'toggle-sidebar' && tab?.windowId) {
-      if (sidePanelOpenWindows.has(tab.windowId)) {
+      const port = sidePanelPorts.get(tab.windowId);
+      if (port) {
         chrome.sidePanel.close({ windowId: tab.windowId });
       } else {
         chrome.sidePanel.open({ windowId: tab.windowId });
