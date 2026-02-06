@@ -1,0 +1,86 @@
+// Wrapper around Chrome Bookmarks API
+
+export async function getBookmarkTree(): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
+  return chrome.bookmarks.getTree();
+}
+
+export async function createBookmark(
+  parentId: string,
+  title: string,
+  url?: string,
+  index?: number
+): Promise<chrome.bookmarks.BookmarkTreeNode> {
+  return chrome.bookmarks.create({ parentId, title, url, index });
+}
+
+export async function updateBookmark(
+  id: string,
+  changes: { title?: string; url?: string }
+): Promise<chrome.bookmarks.BookmarkTreeNode> {
+  return chrome.bookmarks.update(id, changes);
+}
+
+export async function moveBookmark(
+  id: string,
+  destination: { parentId?: string; index?: number }
+): Promise<chrome.bookmarks.BookmarkTreeNode> {
+  return chrome.bookmarks.move(id, destination);
+}
+
+export async function removeBookmark(id: string): Promise<void> {
+  return chrome.bookmarks.remove(id);
+}
+
+export async function removeBookmarkTree(id: string): Promise<void> {
+  return chrome.bookmarks.removeTree(id);
+}
+
+export async function searchBookmarks(
+  query: string
+): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
+  return chrome.bookmarks.search(query);
+}
+
+export function isFolder(node: chrome.bookmarks.BookmarkTreeNode): boolean {
+  return !node.url;
+}
+
+// Root node IDs that cannot be modified
+const PROTECTED_IDS = new Set(['0', '1', '2', '3']);
+
+export function isProtectedNode(id: string): boolean {
+  return PROTECTED_IDS.has(id);
+}
+
+// Get all bookmark URLs in a folder (recursively)
+export function getAllUrls(node: chrome.bookmarks.BookmarkTreeNode): string[] {
+  const urls: string[] = [];
+  if (node.url) {
+    urls.push(node.url);
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      urls.push(...getAllUrls(child));
+    }
+  }
+  return urls;
+}
+
+// Get the path of a bookmark node (e.g. "书签栏 / 工作 / 开发")
+export async function getBookmarkPath(nodeId: string): Promise<string> {
+  const parts: string[] = [];
+  let currentId: string | undefined = nodeId;
+  while (currentId) {
+    const nodes = await chrome.bookmarks.get(currentId);
+    const node = nodes[0];
+    if (!node || PROTECTED_IDS.has(node.id) && node.id === '0') break;
+    if (node.title) parts.unshift(node.title);
+    else if (PROTECTED_IDS.has(node.id)) {
+      // Give root folders readable names
+      const names: Record<string, string> = { '1': '书签栏', '2': '其他书签', '3': '移动设备书签' };
+      parts.unshift(names[node.id] ?? '');
+    }
+    currentId = node.parentId;
+  }
+  return parts.join(' / ');
+}
