@@ -41,13 +41,16 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.commands.onCommand.addListener((command, tab) => {
-    if (command === 'toggle-sidebar' && tab?.windowId) {
-      const port = sidePanelPorts.get(tab.windowId);
+  chrome.commands.onCommand.addListener(async (command, tab) => {
+    if (command === 'toggle-sidebar') {
+      let windowId = tab?.windowId;
+      if (!windowId) return;
+
+      const port = sidePanelPorts.get(windowId);
       if (port) {
-        chrome.sidePanel.close({ windowId: tab.windowId });
+        chrome.sidePanel.close({ windowId });
       } else {
-        chrome.sidePanel.open({ windowId: tab.windowId });
+        chrome.sidePanel.open({ windowId });
       }
     }
   });
