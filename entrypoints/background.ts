@@ -7,15 +7,20 @@ export default defineBackground(() => {
   // ── Context menu: open sidebar ──
   chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
-      id: 'open-sidebar',
-      title: '打开书签管理侧栏',
+      id: 'toggle-sidebar',
+      title: '切换书签管理侧栏',
       contexts: ['action'], // right-click on extension icon
     });
   });
 
   chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === 'open-sidebar' && tab?.windowId) {
-      chrome.sidePanel.open({ windowId: tab.windowId });
+    if (info.menuItemId === 'toggle-sidebar' && tab?.windowId) {
+      const port = sidePanelPorts.get(tab.windowId);
+      if (port) {
+        chrome.sidePanel.close({ windowId: tab.windowId });
+      } else {
+        chrome.sidePanel.open({ windowId: tab.windowId });
+      }
     }
   });
 
