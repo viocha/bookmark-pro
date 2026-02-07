@@ -68,6 +68,7 @@ export default function App() {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url === 'about:blank') {
+          closingRef.current = true;
           window.close();
           return;
         }
@@ -153,9 +154,15 @@ export default function App() {
   const saveChanges = useCallback(async () => {
     if (!bookmarkId) return;
     try {
+      // Verify bookmark still exists before saving
+      const [existing] = await chrome.bookmarks.get(bookmarkId).catch(() => [null]);
+      if (!existing) return;
+
       await updateBookmark(bookmarkId, { title });
-      if (folderId) {
+      if (folderId && folderId !== existing.parentId) {
         await moveBookmark(bookmarkId, { parentId: folderId });
+      }
+      if (folderId) {
         await setLastFolderId(folderId);
       }
     } catch (err) {
@@ -207,6 +214,7 @@ export default function App() {
 
   const handleRemove = useCallback(async () => {
     if (!bookmarkId) return;
+    closingRef.current = true;
     try {
       await chrome.bookmarks.remove(bookmarkId);
     } catch (err) {
