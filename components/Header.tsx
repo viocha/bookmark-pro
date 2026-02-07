@@ -14,6 +14,7 @@ import {
   EyeOff,
   FolderInput,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SettingsDialog } from '@/components/SettingsDialog';
@@ -54,6 +55,7 @@ export function Header() {
 
   const [showSearch, setShowSearch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isSorting, setIsSorting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const openSearch = useCallback(() => {
@@ -97,11 +99,13 @@ export function Header() {
     }
   };
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (val.trim()) {
-      performSearch(val);
+      debounceRef.current = setTimeout(() => performSearch(val), 300);
     } else {
       clearSearch();
     }
@@ -242,11 +246,20 @@ export function Header() {
             <CheckSquare2 className="size-3.5" />
           </button>
           <button
-            onClick={() => useBookmarkStore.getState().sortFoldersFirst()}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
-            title="排序：文件夹置前"
+            onClick={async () => {
+              if (isSorting) return;
+              setIsSorting(true);
+              try {
+                await useBookmarkStore.getState().sortFoldersFirst();
+              } finally {
+                setIsSorting(false);
+              }
+            }}
+            disabled={isSorting}
+            className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-50"
+            title={isSorting ? '排序中…' : '排序：文件夹置前'}
           >
-            <ArrowDownUp className="size-3.5" />
+            {isSorting ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowDownUp className="size-3.5" />}
           </button>
           <button
             onClick={handleSearchToggle}

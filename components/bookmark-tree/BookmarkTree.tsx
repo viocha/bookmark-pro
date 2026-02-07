@@ -119,17 +119,37 @@ export function BookmarkTree() {
     return () => clearTimeout(saveTimerRef.current);
   }, [expandedIds, settingsLoaded, saveTreeState]);
 
-  // Restore scroll position once after tree loads
+  // Locate target: scroll to a specific node instead of restoring scroll position
+  const locateTargetId = useBookmarkStore((s) => s.locateTargetId);
+
+  // Restore scroll position once after tree loads (skip if locating a node)
   useEffect(() => {
     if (scrollRestoredRef.current || !settingsLoaded || tree.length === 0) return;
     scrollRestoredRef.current = true;
+    if (locateTargetId) return; // skip restore — let locate effect handle scroll
     requestAnimationFrame(() => {
       const viewport = document.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
       if (viewport && settingsScrollTop > 0) {
         viewport.scrollTop = settingsScrollTop;
       }
     });
-  }, [settingsLoaded, tree, settingsScrollTop]);
+  }, [settingsLoaded, tree, settingsScrollTop, locateTargetId]);
+
+  // Scroll to located node and flash highlight
+  useEffect(() => {
+    if (!locateTargetId || tree.length === 0) return;
+    // Wait for tree DOM to render
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-node-id="${locateTargetId}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+        el.classList.add('bg-primary/15');
+        setTimeout(() => el.classList.remove('bg-primary/15'), 1500);
+      }
+      useBookmarkStore.setState({ locateTargetId: null });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [locateTargetId, tree]);
 
   // Save scroll position on scroll (debounced)
   useEffect(() => {

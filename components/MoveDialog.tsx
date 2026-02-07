@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { getBookmarkTree, isFolder, moveBookmark as apiMoveBookmark, createBookmark, removeBookmarkTree, updateBookmark } from '@/lib/bookmark-api';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
@@ -34,6 +34,7 @@ export function MoveDialog() {
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   // Search
   const [treeSearch, setTreeSearch] = useState('');
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const isBatchMode = moveTargetNodes.length > 1;
   const hasFolders = isBatchMode && moveTargetNodes.some((n) => isFolder(n));
@@ -70,6 +71,24 @@ export function MoveDialog() {
       setTreeSearch('');
     })();
   }, [moveDialogOpen, moveTargetNodes]);
+
+  // Auto-scroll selected item into view when dialog opens
+  useEffect(() => {
+    if (!moveDialogOpen || !selectedId) return;
+    const timer = setTimeout(() => {
+      const container = scrollAreaRef.current;
+      if (!container) return;
+      const viewport = container.querySelector('[data-slot="scroll-area-viewport"]');
+      const target = container.querySelector(`[data-folder-id="${selectedId}"]`);
+      if (viewport && target) {
+        const viewportRect = viewport.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const offset = targetRect.top - viewportRect.top - viewportRect.height / 2 + targetRect.height / 2;
+        viewport.scrollTop += offset;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [moveDialogOpen, selectedId]);
 
   // --- Context menu handlers ---
 
@@ -262,7 +281,7 @@ export function MoveDialog() {
             className="h-7 text-xs pl-7 pr-2"
           />
         </div>
-        <ScrollArea className="h-[360px] max-h-[calc(100vh-240px)] border rounded-md min-w-0 overflow-hidden">
+        <ScrollArea ref={scrollAreaRef} className="h-[360px] max-h-[calc(100vh-240px)] border rounded-md min-w-0 overflow-hidden">
           {displayTree.map((node) => (
             <FolderTreeItem
               key={node.id}

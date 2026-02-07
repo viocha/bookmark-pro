@@ -18,6 +18,7 @@ interface BookmarkState {
   expandedIds: Set<string>;
   searchQuery: string;
   searchResults: chrome.bookmarks.BookmarkTreeNode[] | null;
+  locateTargetId: string | null;
   isSearching: boolean;
   editingNode: chrome.bookmarks.BookmarkTreeNode | null;
   editDialogOpen: boolean;
@@ -95,6 +96,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   searchQuery: '',
   searchResults: null,
   isSearching: false,
+  locateTargetId: null,
   editingNode: null,
   editDialogOpen: false,
   createFolderParentId: null,
@@ -208,15 +210,8 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
         break;
       }
     }
-    set({ expandedIds: next, searchQuery: '', searchResults: null, isSearching: false });
-    // Scroll to the node after a short delay to let the tree re-render
-    requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-node-id="${nodeId}"]`);
-      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      // Flash highlight
-      el?.classList.add('bg-primary/15');
-      setTimeout(() => el?.classList.remove('bg-primary/15'), 1500);
-    });
+    // Set locateTargetId so BookmarkTree handles scroll after mount
+    set({ expandedIds: next, searchQuery: '', searchResults: null, isSearching: false, locateTargetId: nodeId });
   },
 
   addBookmark: async (parentId, title, url, position) => {

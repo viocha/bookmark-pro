@@ -79,6 +79,7 @@ export function FolderTreeItem({
 
   const rowContent = (
     <div
+      data-folder-id={node.id}
       tabIndex={isDisabled ? undefined : 0}
       className={cn(
         'flex items-center h-7 pr-2 cursor-pointer select-none text-xs gap-0.5 min-w-0 outline-none',

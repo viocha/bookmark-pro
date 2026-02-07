@@ -61,6 +61,8 @@ export default function App() {
   const [editingTitle, setEditingTitle] = useState('');
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const [treeSearch, setTreeSearch] = useState('');
+  const treeSearchRef = useRef<HTMLInputElement>(null);
+  const treeScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Init: load current tab bookmark ───
   useEffect(() => {
@@ -243,6 +245,28 @@ export default function App() {
     setView('tree');
   }, [loadFolderTree]);
 
+  // Auto-focus search and auto-scroll selected item when tree view mounts
+  useEffect(() => {
+    if (view !== 'tree') return;
+    // Focus the search input
+    setTimeout(() => treeSearchRef.current?.focus(), 50);
+    // Scroll selected item into center view
+    if (!selectedId) return;
+    const timer = setTimeout(() => {
+      const container = treeScrollRef.current;
+      if (!container) return;
+      const viewport = container.querySelector('[data-slot="scroll-area-viewport"]');
+      const target = container.querySelector(`[data-folder-id="${selectedId}"]`);
+      if (viewport && target) {
+        const viewportRect = viewport.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const offset = targetRect.top - viewportRect.top - viewportRect.height / 2 + targetRect.height / 2;
+        viewport.scrollTop += offset;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [view, selectedId]);
+
   const handleToggle = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -364,13 +388,14 @@ export default function App() {
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
             <Input
+              ref={treeSearchRef}
               value={treeSearch}
               onChange={(e) => setTreeSearch(e.target.value)}
               placeholder="搜索文件夹…"
               className="h-7 text-xs pl-7 pr-2"
             />
           </div>
-          <ScrollArea className="h-[360px] border rounded-md min-w-0 overflow-hidden">
+          <ScrollArea ref={treeScrollRef} className="h-[360px] border rounded-md min-w-0 overflow-hidden">
             {displayTree.map((node) => (
               <FolderTreeItem
                 key={node.id}

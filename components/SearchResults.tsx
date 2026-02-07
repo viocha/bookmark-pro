@@ -181,14 +181,17 @@ function SearchFolderItem({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        className="flex items-center h-7 px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+        className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
         title={titleAttr}
         onClick={onLocate}
       >
-        <span className="flex items-center justify-center size-4 shrink-0">
+        <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
           <Folder className="size-3.5 text-yellow-600" />
         </span>
-        <span className="truncate min-w-0">{node.title || '(无标题)'}</span>
+        <div className="flex-1 min-w-0">
+          <div className="truncate">{node.title || '(无标题)'}</div>
+          {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         <ContextMenuItem onSelect={onLocate} className="text-xs h-7">
@@ -283,11 +286,11 @@ function SearchResultItem({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        className="flex items-center h-7 px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+        className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
         title={titleAttr}
         onClick={handleClick}
       >
-        <span className="flex items-center justify-center size-4 shrink-0">
+        <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
           {node.url ? (
             <img
               src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
@@ -300,7 +303,10 @@ function SearchResultItem({
           ) : null}
           <FileText className="size-3.5 text-muted-foreground hidden" />
         </span>
-        <span className="truncate min-w-0">{node.title || '(无标题)'}</span>
+        <div className="flex-1 min-w-0">
+          <div className="truncate">{node.title || '(无标题)'}</div>
+          {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         <ContextMenuItem onSelect={onLocate} className="text-xs h-7">
