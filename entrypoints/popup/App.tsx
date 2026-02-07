@@ -41,6 +41,7 @@ export default function App() {
   const [folderId, setFolderId] = useState('1');
   const [folderName, setFolderName] = useState('书签栏');
   const [loading, setLoading] = useState(true);
+  const [isNewBookmark, setIsNewBookmark] = useState(false);
 
   // Recent folders dropdown
   const [recentFolders, setRecentFolders] = useState<RecentFolder[]>([]);
@@ -93,6 +94,7 @@ export default function App() {
             title: tab.title || '',
             url: tab.url,
           });
+          setIsNewBookmark(true);
 
           // Save as last used folder
           try {
@@ -374,7 +376,7 @@ export default function App() {
     return (
       <div className="w-[360px] flex flex-col">
         <div className="px-3 pt-3 pb-2">
-          <h2 className="text-sm font-medium">选择文件夹</h2>
+          <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'} — 选择文件夹</h2>
         </div>
         <div className="px-3">
           <Input
@@ -455,7 +457,9 @@ export default function App() {
 
   // ─── Compact view ───
   return (
-    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[470px]')}>
+    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[500px]')}>
+      {/* Header */}
+      <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'}</h2>
       {/* Name */}
       <div className="flex items-center gap-2">
         <label className="text-xs text-muted-foreground shrink-0 w-10">名称</label>
