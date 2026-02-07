@@ -457,7 +457,7 @@ export default function App() {
 
   // ─── Compact view ───
   return (
-    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[500px]')}>
+    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[520px]')}>
       {/* Header */}
       <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'}</h2>
       {/* Name */}
@@ -522,7 +522,7 @@ export default function App() {
                 />
               </div>
               {/* Folder list */}
-              <div className="max-h-[360px] overflow-y-auto thin-scrollbar">
+              <div className="h-[360px] overflow-y-auto thin-scrollbar">
                 {dropdownSearch.trim() ? (
                   searchedFolders.length === 0 ? (
                     <div className="px-2 py-3 text-xs text-muted-foreground text-center">未找到匹配的文件夹</div>
