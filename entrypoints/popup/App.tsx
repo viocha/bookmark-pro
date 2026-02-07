@@ -362,7 +362,7 @@ export default function App() {
               className="h-7 text-xs pl-7 pr-2"
             />
           </div>
-          <ScrollArea className="h-[280px] border rounded-md min-w-0 overflow-hidden">
+          <ScrollArea className="h-[360px] border rounded-md min-w-0 overflow-hidden">
             {displayTree.map((node) => (
               <FolderTreeItem
                 key={node.id}
@@ -422,7 +422,7 @@ export default function App() {
 
   // ─── Compact view ───
   return (
-    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[412px]')}>
+    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[470px]')}>
       {/* Name */}
       <div className="flex items-center gap-2">
         <label className="text-xs text-muted-foreground shrink-0 w-10">名称</label>
@@ -485,7 +485,7 @@ export default function App() {
                 />
               </div>
               {/* Folder list */}
-              <div className="max-h-[280px] overflow-y-auto thin-scrollbar">
+              <div className="max-h-[360px] overflow-y-auto thin-scrollbar">
                 {dropdownSearch.trim() ? (
                   searchedFolders.length === 0 ? (
                     <div className="px-2 py-3 text-xs text-muted-foreground text-center">未找到匹配的文件夹</div>

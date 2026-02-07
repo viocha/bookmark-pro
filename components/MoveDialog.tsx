@@ -262,7 +262,7 @@ export function MoveDialog() {
             className="h-7 text-xs pl-7 pr-2"
           />
         </div>
-        <ScrollArea className="h-[280px] border rounded-md min-w-0 overflow-hidden">
+        <ScrollArea className="h-[360px] max-h-[calc(100vh-240px)] border rounded-md min-w-0 overflow-hidden">
           {displayTree.map((node) => (
             <FolderTreeItem
               key={node.id}

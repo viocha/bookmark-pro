@@ -15,6 +15,10 @@ export default defineConfig({
       default_title: 'Open Bookmark Pro',
     },
     commands: {
+			_execute_action: {
+        suggested_key: { default: 'Alt+B' },
+        description: '收藏当前页面到书签',
+      },
       'toggle-sidebar': {
         suggested_key: {
           default: 'Alt+Shift+B',
