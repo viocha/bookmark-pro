@@ -19,12 +19,12 @@ export default defineConfig({
     },
     commands: {
 			_execute_action: {
-        suggested_key: { default: 'Alt+B' },
+        suggested_key: { default: 'Alt+F' },
         description: '收藏当前页面到书签',
       },
       'toggle-sidebar': {
         suggested_key: {
-          default: 'Alt+Shift+B',
+          default: 'Alt+Shift+F',
         },
         description: '切换书签管理侧栏',
       },
