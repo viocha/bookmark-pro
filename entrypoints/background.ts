@@ -4,6 +4,53 @@ export default defineBackground(() => {
   // ── Disable side panel opening on action click so popup works ──
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 
+  // ── Side panel state tracking ──
+  // 内存 Set 用于同步查询（sidePanel.open 必须在用户手势的同步调用链中）
+  // chrome.storage.session 用于持久化（Service Worker 休眠重启后恢复）
+  const STORAGE_KEY = 'sidepanel_open_windows';
+  const openSidePanels = new Set<number>();
+
+  // SW 启动时立即从 storage 恢复状态到内存
+  chrome.storage.session.get(STORAGE_KEY).then((data) => {
+    const ids: number[] = data[STORAGE_KEY] ?? [];
+    ids.forEach((id) => openSidePanels.add(id));
+  });
+
+  function persistState() {
+    chrome.storage.session.set({ [STORAGE_KEY]: [...openSidePanels] });
+  }
+
+  // 监听来自 sidepanel 的状态消息
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'sidepanel-opened' && msg.windowId != null) {
+      openSidePanels.add(msg.windowId);
+      persistState();
+    } else if (msg.type === 'sidepanel-closed' && msg.windowId != null) {
+      openSidePanels.delete(msg.windowId);
+      persistState();
+    }
+  });
+
+  // 窗口关闭时清理对应状态
+  chrome.windows.onRemoved.addListener((windowId) => {
+    openSidePanels.delete(windowId);
+    persistState();
+  });
+
+  // 切换侧栏 — 同步读取内存状态，不使用 await，保持用户手势上下文
+  // 状态立即同步更新，不依赖 sidepanel 页面回报（beforeunload 中 sendMessage 不可靠）
+  function toggleSidePanel(windowId: number) {
+    if (openSidePanels.has(windowId)) {
+      openSidePanels.delete(windowId);
+      persistState();
+      chrome.sidePanel.close({ windowId });
+    } else {
+      openSidePanels.add(windowId);
+      persistState();
+      chrome.sidePanel.open({ windowId });
+    }
+  }
+
   // ── Context menu: open sidebar ──
   chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
@@ -15,48 +62,16 @@ export default defineBackground(() => {
 
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'toggle-sidebar' && tab?.windowId) {
-      const port = sidePanelPorts.get(tab.windowId);
-      if (port) {
-        chrome.sidePanel.close({ windowId: tab.windowId });
-      } else {
-        chrome.sidePanel.open({ windowId: tab.windowId });
-      }
+      toggleSidePanel(tab.windowId);
     }
   });
 
   // ── Keyboard shortcut: toggle sidebar ──
-  // 通过 port 连接追踪侧栏状态（跨浏览器兼容）
-  const sidePanelPorts = new Map<number, chrome.runtime.Port>();
-
-  chrome.runtime.onConnect.addListener((port) => {
-    if (port.name === 'sidepanel') {
-      port.onMessage.addListener((msg) => {
-        if (msg.windowId != null) {
-          sidePanelPorts.set(msg.windowId, port);
-        }
-      });
-      port.onDisconnect.addListener(() => {
-        for (const [windowId, p] of sidePanelPorts) {
-          if (p === port) {
-            sidePanelPorts.delete(windowId);
-            break;
-          }
-        }
-      });
-    }
-  });
-
   chrome.commands.onCommand.addListener(async (command, tab) => {
     if (command === 'toggle-sidebar') {
-      let windowId = tab?.windowId;
+      const windowId = tab?.windowId;
       if (!windowId) return;
-
-      const port = sidePanelPorts.get(windowId);
-      if (port) {
-        chrome.sidePanel.close({ windowId });
-      } else {
-        chrome.sidePanel.open({ windowId });
-      }
+      toggleSidePanel(windowId);
     }
   });
 

@@ -3,11 +3,15 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import '@/assets/globals.css';
 
-// 建立与 background 的 port 连接，用于追踪侧栏打开状态
-const port = chrome.runtime.connect({ name: 'sidepanel' });
+// 通知 background 侧栏已打开
 chrome.windows.getCurrent().then((win) => {
   if (win.id != null) {
-    port.postMessage({ windowId: win.id });
+    chrome.runtime.sendMessage({ type: 'sidepanel-opened', windowId: win.id });
+
+    // 侧栏关闭时（页面卸载前）通知 background
+    window.addEventListener('beforeunload', () => {
+      chrome.runtime.sendMessage({ type: 'sidepanel-closed', windowId: win.id });
+    });
   }
 });
 
