@@ -361,8 +361,23 @@ export default function App() {
   // ─── Render ───
   if (loading) {
     return (
-      <div className="w-[360px] p-4 flex items-center justify-center">
-        <span className="text-xs text-muted-foreground">加载中…</span>
+      <div className="w-[360px] flex flex-col gap-2.5 p-3">
+        {/* Skeleton: matches compact view layout to prevent height jump */}
+        <div className="h-5 w-24 rounded bg-muted animate-pulse" />
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-10 rounded bg-muted animate-pulse shrink-0" />
+          <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-10 rounded bg-muted animate-pulse shrink-0" />
+          <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2 pt-0.5">
+          <div className="h-7 w-12 rounded bg-muted animate-pulse" />
+          <div className="flex-1" />
+          <div className="h-7 w-14 rounded bg-muted animate-pulse" />
+          <div className="h-7 w-14 rounded bg-muted animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -374,7 +389,7 @@ export default function App() {
     const displayExpandedIds = trimmedSearch ? collectAllIds(displayTree) : expandedIds;
 
     return (
-      <div className="w-[360px] flex flex-col">
+      <div className="w-[360px] flex flex-col animate-in fade-in duration-150">
         <div className="px-3 pt-3 pb-2">
           <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'} — 选择文件夹</h2>
         </div>
@@ -457,7 +472,7 @@ export default function App() {
 
   // ─── Compact view ───
   return (
-    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[520px]')}>
+    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3 animate-in fade-in duration-150', dropdownOpen && 'min-h-[520px]')}>
       {/* Header */}
       <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'}</h2>
       {/* Name */}
