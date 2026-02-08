@@ -298,7 +298,7 @@ export function TreeNodeContent({
             {!folder && node.url && (
               <img
                 src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
-                className="size-2 absolute -bottom-0.5 -right-0.5 rounded-sm"
+                className="size-2.5 absolute -bottom-0.5 -right-0.5 rounded-sm"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
