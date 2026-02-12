@@ -262,8 +262,17 @@ function SearchResultItem({
     }
   }, [node.parentId]);
 
-  const handleClick = () => {
-    if (node.url) chrome.tabs.update({ url: node.url });
+  const handleClick = (e: React.MouseEvent) => {
+    if (!node.url) return;
+    // Let browser handle modifier clicks natively via <a> href
+    if (e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) {
+      return;
+    }
+    // Plain click: navigate in current tab
+    e.preventDefault();
+    chrome.tabs.update({ url: node.url }).catch(() => {
+      chrome.tabs.create({ url: node.url! });
+    });
   };
   const handleOpenNewTab = () => {
     if (node.url) chrome.tabs.create({ url: node.url });
@@ -285,28 +294,31 @@ function SearchResultItem({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger
-        className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
-        title={titleAttr}
-        onClick={handleClick}
-      >
-        <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
-          {node.url ? (
-            <img
-              src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
-              className="size-3.5"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : null}
-          <FileText className="size-3.5 text-muted-foreground hidden" />
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="truncate">{node.title || '(无标题)'}</div>
-          {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
-        </div>
+      <ContextMenuTrigger asChild>
+        <a
+          href={node.url}
+          className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+          title={titleAttr}
+          onClick={handleClick}
+        >
+          <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
+            {node.url ? (
+              <img
+                src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
+                className="size-3.5"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <FileText className="size-3.5 text-muted-foreground hidden" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="truncate">{node.title || '(无标题)'}</div>
+            {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
+          </div>
+        </a>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         <ContextMenuItem onSelect={onLocate} className="text-xs h-7">

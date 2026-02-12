@@ -546,6 +546,7 @@ export default function App() {
                       <button
                         key={f.id}
                         type="button"
+                        title={[f.title, f.path].filter(Boolean).join('\n')}
                         className={cn(
                           'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
                           f.id === folderId && 'bg-primary/10'
@@ -568,6 +569,7 @@ export default function App() {
                     <button
                       key={f.id}
                       type="button"
+                      title={[f.title, f.path].filter(Boolean).join('\n')}
                       className={cn(
                         'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
                         f.id === folderId && 'bg-primary/10'

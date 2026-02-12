@@ -84,6 +84,7 @@ export function TreeNodeContent({
     e.stopPropagation();
     if (multiSelectMode) {
       // In multi-select mode: click toggles selection (skip protected)
+      e.preventDefault();
       if (isProtected) return;
       if (e.shiftKey && flatIds.length > 0) {
         rangeSelect(node.id, flatIds);
@@ -96,7 +97,15 @@ export function TreeNodeContent({
     if (folder) {
       toggleExpand(node.id);
     } else if (node.url) {
-      chrome.tabs.update({ url: node.url });
+      // Let browser handle modifier clicks natively via <a> href
+      if (e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) {
+        return;
+      }
+      // Plain click: navigate in current tab
+      e.preventDefault();
+      chrome.tabs.update({ url: node.url }).catch(() => {
+        chrome.tabs.create({ url: node.url! });
+      });
     }
   };
 
@@ -434,25 +443,48 @@ export function TreeNodeContent({
     </ContextMenuContent>
   );
 
+  const isBookmark = !folder && !!node.url;
+  const triggerClassName = cn(
+    'flex items-center h-7 pr-2 cursor-pointer select-none',
+    'text-xs gap-0.5 overflow-hidden',
+    isSelected
+      ? 'bg-primary/10 hover:bg-primary/15 data-[state=open]:bg-primary/10'
+      : 'hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60'
+  );
+  const triggerDataProps = {
+    'data-node-id': node.id,
+    'data-inside-highlight': insideHighlight || undefined,
+  } as Record<string, any>;
+
   return (
     <ContextMenu>
-      <ContextMenuTrigger
-        ref={setNodeRef}
-        title={titleAttr}
-        data-node-id={node.id}
-        data-inside-highlight={insideHighlight || undefined}
-        className={cn(
-          'flex items-center h-7 pr-2 cursor-pointer select-none',
-          'text-xs gap-0.5 overflow-hidden',
-          isSelected
-            ? 'bg-primary/10 hover:bg-primary/15 data-[state=open]:bg-primary/10'
-            : 'hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60'
+      <ContextMenuTrigger asChild>
+        {isBookmark ? (
+          <a
+            href={node.url}
+            ref={setNodeRef}
+            title={titleAttr}
+            className={triggerClassName}
+            onClick={handleClick}
+            {...triggerDataProps}
+            {...listeners}
+            {...attributes}
+          >
+            {innerContent}
+          </a>
+        ) : (
+          <div
+            ref={setNodeRef}
+            title={titleAttr}
+            className={triggerClassName}
+            onClick={handleClick}
+            {...triggerDataProps}
+            {...listeners}
+            {...attributes}
+          >
+            {innerContent}
+          </div>
         )}
-        onClick={handleClick}
-        {...listeners}
-        {...attributes}
-      >
-        {innerContent}
       </ContextMenuTrigger>
       {showBatchMenu ? batchContextMenuContent : contextMenuContent}
     </ContextMenu>

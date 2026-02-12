@@ -69,15 +69,12 @@ export function Header() {
   }, [showSearch]);
 
   // When locateNode clears search externally, close the search bar
-  const searchResults = useBookmarkStore((s) => s.searchResults);
-  const prevSearchQueryRef = useRef(searchQuery);
+  const locateTargetId = useBookmarkStore((s) => s.locateTargetId);
   useEffect(() => {
-    // Only close when query transitions from non-empty to empty (external clear)
-    if (showSearch && prevSearchQueryRef.current && !searchQuery && searchResults === null) {
+    if (locateTargetId && showSearch) {
       setShowSearch(false);
     }
-    prevSearchQueryRef.current = searchQuery;
-  }, [searchQuery, searchResults, showSearch]);
+  }, [locateTargetId, showSearch]);
 
   // Listen for Ctrl+F
   useEffect(() => {
