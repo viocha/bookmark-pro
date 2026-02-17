@@ -29,6 +29,7 @@ import {
   EyeOff,
   Copy,
   Square,
+  CheckSquare,
   CheckSquare2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -71,6 +72,7 @@ export function TreeNodeContent({
     clearSelection,
     openBatchMoveDialog,
     confirmBatchDelete,
+    enterMultiSelectMode,
   } = useBookmarkStore();
   const bookmarkInsertPosition = useSettings((s) => s.bookmarkInsertPosition);
 
@@ -194,6 +196,12 @@ export function TreeNodeContent({
 
   const handleCreateFolder = () => {
     openCreateFolderDialog(node.id);
+  };
+
+  const handleEnterMultiSelect = () => {
+    enterMultiSelectMode();
+    // Auto-select current node
+    toggleSelect(node.id);
   };
 
   const handleOpenAll = () => {
@@ -407,6 +415,15 @@ export function TreeNodeContent({
         <ChevronsDownUp className="size-3.5 mr-2" />
         递归折叠
       </ContextMenuItem>
+      {!multiSelectMode && !isProtected && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={handleEnterMultiSelect} className="text-xs h-7">
+            <CheckSquare className="size-3.5 mr-2" />
+            多选
+          </ContextMenuItem>
+        </>
+      )}
     </ContextMenuContent>
   ) : (
     <ContextMenuContent className="w-48">
@@ -440,6 +457,15 @@ export function TreeNodeContent({
         <Copy className="size-3.5 mr-2" />
         复制链接
       </ContextMenuItem>
+      {!multiSelectMode && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={handleEnterMultiSelect} className="text-xs h-7">
+            <CheckSquare className="size-3.5 mr-2" />
+            多选
+          </ContextMenuItem>
+        </>
+      )}
     </ContextMenuContent>
   );
 
