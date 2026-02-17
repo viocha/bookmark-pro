@@ -10,6 +10,7 @@ import {
   searchBookmarks,
   isFolder,
   isProtectedNode,
+  normalizeFolderChildren,
 } from '@/lib/bookmark-api';
 import { useSettings } from '@/hooks/useSettings';
 
@@ -18,6 +19,8 @@ interface BookmarkState {
   expandedIds: Set<string>;
   searchQuery: string;
   searchResults: chrome.bookmarks.BookmarkTreeNode[] | null;
+  /** When true, Chrome bookmark event listeners skip auto-reload (for batch ops) */
+  _suppressReload: boolean;
   locateTargetId: string | null;
   isSearching: boolean;
   editingNode: chrome.bookmarks.BookmarkTreeNode | null;
@@ -96,6 +99,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   searchQuery: '',
   searchResults: null,
   isSearching: false,
+  _suppressReload: false,
   locateTargetId: null,
   editingNode: null,
   editDialogOpen: false,
@@ -221,18 +225,9 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       return globalExisting[0];
     }
     // Sort existing children: folders before bookmarks
+    await normalizeFolderChildren(parentId);
     const children = await chrome.bookmarks.getChildren(parentId);
     const folders = children.filter(c => !c.url);
-    const bookmarks = children.filter(c => !!c.url);
-    const sorted = [...folders, ...bookmarks];
-    let current = [...children];
-    for (let i = 0; i < sorted.length; i++) {
-      if (sorted[i].id !== current[i]?.id) {
-        await moveBookmark(sorted[i].id, { parentId, index: i });
-        const updated = await chrome.bookmarks.getChildren(parentId);
-        current = updated;
-      }
-    }
     // Determine insert index
     let index: number | undefined;
     if (position === 'top') {
@@ -245,20 +240,10 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   addFolder: async (parentId, title, position) => {
-    // First sort existing children: folders before bookmarks
+    // Sort existing children: folders before bookmarks
+    await normalizeFolderChildren(parentId);
     const children = await chrome.bookmarks.getChildren(parentId);
     const folders = children.filter(c => !c.url);
-    const bookmarks = children.filter(c => !!c.url);
-    const sorted = [...folders, ...bookmarks];
-    // Move items to their correct positions if needed
-    let current = [...children];
-    for (let i = 0; i < sorted.length; i++) {
-      if (sorted[i].id !== current[i]?.id) {
-        await moveBookmark(sorted[i].id, { parentId, index: i });
-        const updated = await chrome.bookmarks.getChildren(parentId);
-        current = updated;
-      }
-    }
     // Determine insert index based on position
     const insertIndex = position === 'top' ? 0 : folders.length;
     await createBookmark(parentId, title, undefined, insertIndex);
@@ -269,21 +254,12 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Recursively sort all folders so folders come before bookmarks
     const sortChildren = async (node: chrome.bookmarks.BookmarkTreeNode) => {
       if (!node.children || node.children.length === 0) return;
-      const folders = node.children.filter(c => !c.url);
-      const bookmarks = node.children.filter(c => !!c.url);
-      const sorted = [...folders, ...bookmarks];
-      // Move items to their correct positions
-      for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i].id !== node.children[i]?.id) {
-          await moveBookmark(sorted[i].id, { parentId: node.id, index: i });
-          // Re-fetch children after move to get updated order
-          const updated = await chrome.bookmarks.getChildren(node.id);
-          node.children = updated as chrome.bookmarks.BookmarkTreeNode[];
-        }
-      }
+      await normalizeFolderChildren(node.id);
+      // Re-fetch children after normalization
+      const updatedChildren = await chrome.bookmarks.getChildren(node.id);
+      const folders = updatedChildren.filter(c => !c.url);
       // Recurse into subfolders
       for (const child of folders) {
-        // Re-fetch the full subtree for this folder
         const subtree = await chrome.bookmarks.getSubTree(child.id);
         if (subtree[0]) await sortChildren(subtree[0]);
       }
@@ -527,7 +503,10 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
 // Listen for bookmark changes from external sources
 export function setupBookmarkListeners() {
-  const reload = () => useBookmarkStore.getState().loadTree();
+  const reload = () => {
+    if (useBookmarkStore.getState()._suppressReload) return;
+    useBookmarkStore.getState().loadTree();
+  };
   chrome.bookmarks.onCreated.addListener(reload);
   chrome.bookmarks.onRemoved.addListener(reload);
   chrome.bookmarks.onChanged.addListener(reload);

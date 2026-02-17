@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings } from '@/hooks/useSettings';
-import { isProtectedNode } from '@/lib/bookmark-api';
+import { isProtectedNode, normalizeFolderChildren } from '@/lib/bookmark-api';
+import { moveBookmark } from '@/lib/bookmark-api';
 import { flattenTree, computeDropIndicator, FlattenedNode, DropIndicator } from '@/lib/tree-utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TreeNodeContent } from './TreeNodeContent';
@@ -100,6 +101,7 @@ function DndTreeNode({
 
 export function BookmarkTree() {
   const { tree, expandedIds, moveNode } = useBookmarkStore();
+  const loadTree = useBookmarkStore((s) => s.loadTree);
   const saveTreeState = useSettings((s) => s.saveTreeState);
   const settingsScrollTop = useSettings((s) => s.scrollTop);
   const settingsLoaded = useSettings((s) => s.loaded);
@@ -107,6 +109,16 @@ export function BookmarkTree() {
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const scrollRestoredRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Auto-expand/collapse: when dragging over a folder's "inside" zone for 2s,
+  // toggle its expanded state so user can navigate into / collapse children.
+  const hoverFolderRef = useRef<string | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const clearHoverTimer = useCallback(() => {
+    clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = undefined;
+    hoverFolderRef.current = null;
+  }, []);
 
   // Track real cursor position in viewport coordinates.
   // dnd-kit's event.delta includes scroll compensation, making
@@ -252,12 +264,14 @@ export function BookmarkTree() {
       const { over } = event;
       if (!over || !activeId) {
         setDropIndicator(null);
+        clearHoverTimer();
         return;
       }
 
       const overId = String(over.id);
       if (overId === activeId) {
         setDropIndicator(null);
+        clearHoverTimer();
         return;
       }
 
@@ -266,6 +280,7 @@ export function BookmarkTree() {
       const overEl = document.querySelector<HTMLElement>(`[data-node-id="${overId}"]`);
       if (!overEl) {
         setDropIndicator(null);
+        clearHoverTimer();
         return;
       }
       const overRect = overEl.getBoundingClientRect();
@@ -284,8 +299,26 @@ export function BookmarkTree() {
         cursorX
       );
       setDropIndicator(indicator);
+
+      // Auto-expand/collapse: start a 2s timer when hovering inside a folder
+      const overItem = flatItems.find((i) => i.id === overId);
+      if (indicator?.zone === 'inside' && overItem?.isFolder) {
+        // Only start timer if this is a different folder than we were already timing
+        if (hoverFolderRef.current !== overId) {
+          clearHoverTimer();
+          hoverFolderRef.current = overId;
+          hoverTimerRef.current = setTimeout(() => {
+            const store = useBookmarkStore.getState();
+            store.toggleExpand(overId);
+            hoverFolderRef.current = null;
+          }, 2000);
+        }
+      } else {
+        // Cursor moved out of "inside" zone — cancel any pending timer
+        clearHoverTimer();
+      }
     },
-    [flatItems, activeId]
+    [flatItems, activeId, clearHoverTimer]
   );
 
   const handleDragEnd = useCallback(
@@ -295,6 +328,7 @@ export function BookmarkTree() {
 
       setActiveId(null);
       setDropIndicator(null);
+      clearHoverTimer();
 
       if (!over || active.id === over.id) return;
 
@@ -310,21 +344,15 @@ export function BookmarkTree() {
         const { folderInsertPosition, bookmarkInsertPosition } = useSettings.getState();
 
         try {
-          // Get and normalize target folder children (folders first)
-          const children = await chrome.bookmarks.getChildren(targetFolderId);
-          const folders = children.filter((c) => !c.url);
-          const bookmarks = children.filter((c) => !!c.url);
-          const sorted = [...folders, ...bookmarks];
-          let current = [...children];
-          for (let i = 0; i < sorted.length; i++) {
-            if (sorted[i].id !== current[i]?.id) {
-              await chrome.bookmarks.move(sorted[i].id, { parentId: targetFolderId, index: i });
-              const updated = await chrome.bookmarks.getChildren(targetFolderId);
-              current = updated;
-            }
-          }
+          // Suppress auto-reload during batch bookmark operations
+          useBookmarkStore.setState({ _suppressReload: true });
+
+          // Normalize target folder children (folders first)
+          await normalizeFolderChildren(targetFolderId);
 
           // Compute insert index based on settings
+          const children = await chrome.bookmarks.getChildren(targetFolderId);
+          const folders = children.filter((c) => !c.url);
           let index: number | undefined;
           if (isActiveFolder) {
             index = folderInsertPosition === 'top' ? 0 : folders.length;
@@ -335,22 +363,48 @@ export function BookmarkTree() {
             // else: undefined = append to end (bottom)
           }
 
-          await moveNode(activeIdStr, { parentId: targetFolderId, index });
+          await moveBookmark(activeIdStr, { parentId: targetFolderId, index });
         } catch (err) {
           console.error('[Bookmark Pro] drag-into-folder error:', err);
+        } finally {
+          useBookmarkStore.setState({ _suppressReload: false });
+          await loadTree();
         }
         return;
       }
 
-      moveNode(activeIdStr, currentIndicator.projection);
+      // "before" / "after" drop: move first, then normalize the target parent
+      const targetParentId = currentIndicator.projection.parentId;
+      const activeFlat = flatItems.find((i) => i.id === activeIdStr);
+      const sourceParentId = activeFlat?.parentId ?? null;
+
+      try {
+        // Suppress auto-reload during batch bookmark operations
+        useBookmarkStore.setState({ _suppressReload: true });
+
+        await moveBookmark(activeIdStr, currentIndicator.projection);
+
+        // Normalize the target parent folder (folders before bookmarks)
+        await normalizeFolderChildren(targetParentId);
+        // If moved across folders, also normalize the source parent
+        if (sourceParentId && sourceParentId !== targetParentId) {
+          await normalizeFolderChildren(sourceParentId);
+        }
+      } catch (err) {
+        console.error('[Bookmark Pro] post-drag normalize error:', err);
+      } finally {
+        useBookmarkStore.setState({ _suppressReload: false });
+        await loadTree();
+      }
     },
-    [moveNode, dropIndicator, flatItems]
+    [moveNode, dropIndicator, flatItems, clearHoverTimer]
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
     setDropIndicator(null);
-  }, []);
+    clearHoverTimer();
+  }, [clearHoverTimer]);
 
   return (
     <div className="relative h-full">
