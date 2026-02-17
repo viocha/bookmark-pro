@@ -62,6 +62,8 @@ export const TREE_INDENT_PX = 14;
 // Anchor line/indent calculations to the icon column LEFT edge:
 // indent spacer + chevron left margin (~2px) + chevron column (~16px) + inter-item gap (~2px).
 export const TREE_ICON_ANCHOR_OFFSET_PX = 20;
+/** Horizontal drag distance (px) required to change one indent level during drag */
+export const DRAG_INDENT_SENSITIVITY_PX = 40;
 
 /**
  * Determine drop indicator by analyzing cursor position (Y for zone, X for indent/outdent).
@@ -79,9 +81,11 @@ export function computeDropIndicator(
   flatItems: FlattenedNode[],
   activeId: string,
   overId: string,
-  overRect: { top: number; height: number; left: number },
+  overRect: { top: number; height: number },
   cursorY: number,
-  cursorX: number
+  cursorX: number,
+  dragStartX: number,
+  dragStartDepth: number
 ): DropIndicator | null {
   const overIndex = flatItems.findIndex((item) => item.id === overId);
   const activeIndex = flatItems.findIndex((item) => item.id === activeId);
@@ -152,12 +156,13 @@ export function computeDropIndicator(
     const lastItem = flatItems[lastInSubtreeIndex];
     const lastDepth = lastItem.depth;
 
-    // Calculate the "desired depth" from cursor X position
-    // The overRect.left corresponds to the indentation base of the list
-    const baseLeft = overRect.left;
+    // Calculate the "desired depth" from relative horizontal movement.
+    // Use the distance moved from the drag start position, not the absolute cursor position.
+    // This way, moving left by one indent unit = outdent by one level, regardless of start position.
+    const deltaX = cursorX - dragStartX;
     const desiredDepth = Math.max(
       0,
-      Math.round((cursorX - baseLeft - TREE_ICON_ANCHOR_OFFSET_PX) / TREE_INDENT_PX)
+      dragStartDepth + Math.round(deltaX / DRAG_INDENT_SENSITIVITY_PX)
     );
 
     // We can only outdent if the cursor's desired depth is less than the item's depth.

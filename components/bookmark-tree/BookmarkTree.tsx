@@ -133,6 +133,8 @@ export function BookmarkTree() {
   // position when the ScrollArea scrolls during drag (e.g. auto-scroll).
   // Using a pointermove listener gives us the true viewport cursor position.
   const pointerRef = useRef({ x: 0, y: 0 });
+  // Record drag start cursor X and active item depth for relative indent calculation
+  const dragStartRef = useRef<{ x: number; depth: number }>({ x: 0, depth: 0 });
   useEffect(() => {
     const handler = (e: PointerEvent) => {
       pointerRef.current = { x: e.clientX, y: e.clientY };
@@ -263,8 +265,13 @@ export function BookmarkTree() {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const id = String(event.active.id);
     if (isProtectedNode(id)) return;
+    const item = flatItems.find((i) => i.id === id);
+    dragStartRef.current = {
+      x: pointerRef.current.x,
+      depth: item?.depth ?? 0,
+    };
     setActiveId(id);
-  }, []);
+  }, [flatItems]);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
@@ -301,9 +308,11 @@ export function BookmarkTree() {
         flatItems,
         activeId,
         overId,
-        { top: overRect.top, height: overRect.height, left: overRect.left },
+        { top: overRect.top, height: overRect.height },
         cursorY,
-        cursorX
+        cursorX,
+        dragStartRef.current.x,
+        dragStartRef.current.depth
       );
       setDropIndicator(indicator);
 
