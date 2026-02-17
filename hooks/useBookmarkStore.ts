@@ -264,16 +264,21 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
         if (subtree[0]) await sortChildren(subtree[0]);
       }
     };
-    const tree = await getBookmarkTree();
-    for (const root of tree) {
-      if (root.children) {
-        for (const topLevel of root.children) {
-          const subtree = await chrome.bookmarks.getSubTree(topLevel.id);
-          if (subtree[0]) await sortChildren(subtree[0]);
+    set({ _suppressReload: true });
+    try {
+      const tree = await getBookmarkTree();
+      for (const root of tree) {
+        if (root.children) {
+          for (const topLevel of root.children) {
+            const subtree = await chrome.bookmarks.getSubTree(topLevel.id);
+            if (subtree[0]) await sortChildren(subtree[0]);
+          }
         }
       }
+    } finally {
+      set({ _suppressReload: false });
+      await get().loadTree();
     }
-    await get().loadTree();
     toast('已完成排序', { description: '所有文件夹已移至书签前方', duration: 3000 });
   },
 
@@ -357,8 +362,16 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
         }
       }
     };
-    await recreateChildren(folder.id, children);
-    await get().loadTree();
+    const wasSuppressed = get()._suppressReload;
+    if (!wasSuppressed) set({ _suppressReload: true });
+    try {
+      await recreateChildren(folder.id, children);
+    } finally {
+      if (!wasSuppressed) {
+        set({ _suppressReload: false });
+        await get().loadTree();
+      }
+    }
   },
 
   openMoveDialog: (node) => {
@@ -454,16 +467,23 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Save snapshots before deletion for undo
     const savedSnapshots = [...nodes];
     let count = 0;
-    for (const n of nodes) {
-      if (isProtectedNode(n.id)) continue;
-      if (isFolder(n)) {
-        await removeBookmarkTree(n.id);
-      } else {
-        await removeBookmark(n.id);
+
+    // Suppress auto-reload during batch deletion
+    set({ _suppressReload: true });
+    try {
+      for (const n of nodes) {
+        if (isProtectedNode(n.id)) continue;
+        if (isFolder(n)) {
+          await removeBookmarkTree(n.id);
+        } else {
+          await removeBookmark(n.id);
+        }
+        count++;
       }
-      count++;
+    } finally {
+      set({ _suppressReload: false });
+      await get().loadTree();
     }
-    await get().loadTree();
     set({
       multiSelectMode: false,
       selectedIds: new Set<string>(),
@@ -473,26 +493,35 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       action: {
         label: '撤销',
         onClick: async () => {
-          // Recreate all deleted items in reverse order (to preserve indices)
-          for (const snap of savedSnapshots.reverse()) {
-            if (isProtectedNode(snap.id)) continue;
-            if (isFolder(snap)) {
-              await get().undoDeleteFolder(
-                snap.title,
-                snap.parentId ?? '1',
-                snap.children ?? [],
-                snap.index,
-              );
-            } else {
-              await createBookmark(
-                snap.parentId ?? '1',
-                snap.title,
-                snap.url,
-                snap.index,
-              );
+          // Suppress auto-reload during batch undo
+          set({ _suppressReload: true });
+          try {
+            // Sort snapshots by index ascending so lower-index items are
+            // recreated first — avoids "Index out of bounds" when restoring
+            // multiple items under the same (now-empty) parent.
+            const sorted = [...savedSnapshots].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+            for (const snap of sorted) {
+              if (isProtectedNode(snap.id)) continue;
+              if (isFolder(snap)) {
+                await get().undoDeleteFolder(
+                  snap.title,
+                  snap.parentId ?? '1',
+                  snap.children ?? [],
+                  snap.index,
+                );
+              } else {
+                await createBookmark(
+                  snap.parentId ?? '1',
+                  snap.title,
+                  snap.url,
+                  snap.index,
+                );
+              }
             }
+          } finally {
+            set({ _suppressReload: false });
+            await get().loadTree();
           }
-          await get().loadTree();
           toast(`已恢复 ${count} 个项目`, { duration: 2000 });
         },
       },

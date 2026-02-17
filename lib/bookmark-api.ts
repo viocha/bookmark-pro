@@ -71,6 +71,8 @@ export function getAllUrls(node: chrome.bookmarks.BookmarkTreeNode): string[] {
  * Preserves relative order within each group.
  */
 export async function normalizeFolderChildren(parentId: string): Promise<void> {
+  // Root node ("0") cannot be modified by Chrome API
+  if (parentId === '0') return;
   const children = await chrome.bookmarks.getChildren(parentId);
   const folders = children.filter((c) => !c.url);
   const bookmarks = children.filter((c) => !!c.url);

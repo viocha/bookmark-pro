@@ -339,6 +339,8 @@ export function BookmarkTree() {
       // When dropping inside a folder, normalize children and compute correct index
       if (currentIndicator.zone === 'inside') {
         const targetFolderId = currentIndicator.projection.parentId;
+        // Cannot move into the root node
+        if (targetFolderId === '0') return;
         const activeFlat = flatItems.find((i) => i.id === activeIdStr);
         const isActiveFolder = activeFlat?.isFolder ?? false;
         const { folderInsertPosition, bookmarkInsertPosition } = useSettings.getState();
@@ -375,6 +377,8 @@ export function BookmarkTree() {
 
       // "before" / "after" drop: move first, then normalize the target parent
       const targetParentId = currentIndicator.projection.parentId;
+      // Cannot move into the root node
+      if (targetParentId === '0') return;
       const activeFlat = flatItems.find((i) => i.id === activeIdStr);
       const sourceParentId = activeFlat?.parentId ?? null;
 

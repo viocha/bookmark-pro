@@ -213,6 +213,7 @@ export function MoveDialog() {
     if (moveTargetNodes.length === 0 || !selectedId) return;
 
     try {
+      useBookmarkStore.setState({ _suppressReload: true });
       for (const targetNode of moveTargetNodes) {
         const currentParentId = targetNode.parentId;
         const isTargetFolder = isFolder(targetNode);
@@ -246,10 +247,13 @@ export function MoveDialog() {
           await apiMoveBookmark(targetNode.id, { parentId: selectedId });
         }
       }
+      useBookmarkStore.setState({ _suppressReload: false });
       await loadTree();
       if (isBatchMode) clearSelection();
       closeMoveDialog();
     } catch (err) {
+      useBookmarkStore.setState({ _suppressReload: false });
+      await loadTree();
       console.error('[Bookmark Pro] move error:', err);
     }
   };

@@ -156,8 +156,13 @@ export function computeDropIndicator(
 
     // We can only outdent if the cursor's desired depth is less than the item's depth.
     // But we cannot go shallower than the depth of the next visible sibling below.
-    const nextItemDepth = lastInSubtreeIndex + 1 < flatItems.length
-      ? flatItems[lastInSubtreeIndex + 1].depth
+    // Skip the active (dragged) item — it will be moved away, so it shouldn't constrain outdent.
+    let nextNonActiveIndex = lastInSubtreeIndex + 1;
+    while (nextNonActiveIndex < flatItems.length && flatItems[nextNonActiveIndex].id === activeId) {
+      nextNonActiveIndex++;
+    }
+    const nextItemDepth = nextNonActiveIndex < flatItems.length
+      ? flatItems[nextNonActiveIndex].depth
       : 0;
 
     // Only allow outdent when over item is the "bottom" of the subtree visible
