@@ -108,6 +108,24 @@ export function BookmarkTree() {
   const scrollRestoredRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Track real cursor position in viewport coordinates.
+  // dnd-kit's event.delta includes scroll compensation, making
+  // `initialEvent.clientY + delta.y` diverge from the actual cursor
+  // position when the ScrollArea scrolls during drag (e.g. auto-scroll).
+  // Using a pointermove listener gives us the true viewport cursor position.
+  const pointerRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const handler = (e: PointerEvent) => {
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('pointermove', handler, { passive: true });
+    window.addEventListener('pointerdown', handler, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', handler);
+      window.removeEventListener('pointerdown', handler);
+    };
+  }, []);
+
   // Persist expandedIds whenever they change (debounced)
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -231,7 +249,7 @@ export function BookmarkTree() {
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
-      const { over, activatorEvent } = event;
+      const { over } = event;
       if (!over || !activeId) {
         setDropIndicator(null);
         return;
@@ -243,15 +261,19 @@ export function BookmarkTree() {
         return;
       }
 
-      const overRect = over.rect;
-      if (!overRect) {
+      // Get the over element's rect directly from DOM to guarantee
+      // viewport-relative coordinates, matching our pointer position.
+      const overEl = document.querySelector<HTMLElement>(`[data-node-id="${overId}"]`);
+      if (!overEl) {
         setDropIndicator(null);
         return;
       }
+      const overRect = overEl.getBoundingClientRect();
 
-      const initialEvent = activatorEvent as PointerEvent;
-      const cursorY = initialEvent.clientY + (event.delta?.y ?? 0);
-      const cursorX = initialEvent.clientX + (event.delta?.x ?? 0);
+      // Use real cursor position (viewport coordinates) from pointermove,
+      // NOT initialEvent.clientY + delta.y which includes scroll compensation.
+      const cursorY = pointerRef.current.y;
+      const cursorX = pointerRef.current.x;
 
       const indicator = computeDropIndicator(
         flatItems,

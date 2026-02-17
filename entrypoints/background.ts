@@ -100,36 +100,32 @@ export default defineBackground(() => {
   }
 
   async function updateIconForTab(tabId: number, url?: string) {
-    if (!url) {
-      try {
+    try {
+      if (!url) {
         const tab = await chrome.tabs.get(tabId);
         url = tab.url;
-      } catch {
-        return;
       }
-    }
-    if (!url) return;
+      if (!url) return;
 
-    const bookmark = await findBookmarkForUrl(url);
-    const imageData = bookmark ? await getFilledIcon() : await getUnfilledIcon();
-    const title = bookmark ? 'Bookmark Pro - 已收藏' : 'Bookmark Pro - 未收藏';
+      const bookmark = await findBookmarkForUrl(url);
+      const imageData = bookmark ? await getFilledIcon() : await getUnfilledIcon();
+      const title = bookmark ? 'Bookmark Pro - 已收藏' : 'Bookmark Pro - 未收藏';
 
-    try {
       await chrome.action.setIcon({ tabId, imageData });
       await chrome.action.setTitle({ tabId, title });
     } catch {
-      // Tab may have been closed
+      // Tab may have been closed during async operations — ignore
     }
   }
 
   // Update when tab is activated / URL changes
-  chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    updateIconForTab(activeInfo.tabId);
+  chrome.tabs.onActivated.addListener((activeInfo) => {
+    updateIconForTab(activeInfo.tabId).catch(() => {});
   });
 
   chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.url || changeInfo.status === 'complete') {
-      if (tab.id) updateIconForTab(tab.id, tab.url);
+      if (tab.id) updateIconForTab(tab.id, tab.url).catch(() => {});
     }
   });
 
