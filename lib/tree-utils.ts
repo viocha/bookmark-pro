@@ -58,7 +58,10 @@ export interface DropIndicator {
   projection: DropProjection;
 }
 
-const INDENT_PX = 14;
+export const TREE_INDENT_PX = 14;
+// Anchor line/indent calculations to the icon column LEFT edge:
+// indent spacer + chevron left margin (~2px) + chevron column (~16px) + inter-item gap (~2px).
+export const TREE_ICON_ANCHOR_OFFSET_PX = 20;
 
 /**
  * Determine drop indicator by analyzing cursor position (Y for zone, X for indent/outdent).
@@ -152,7 +155,10 @@ export function computeDropIndicator(
     // Calculate the "desired depth" from cursor X position
     // The overRect.left corresponds to the indentation base of the list
     const baseLeft = overRect.left;
-    const desiredDepth = Math.max(0, Math.round((cursorX - baseLeft - 20) / INDENT_PX));
+    const desiredDepth = Math.max(
+      0,
+      Math.round((cursorX - baseLeft - TREE_ICON_ANCHOR_OFFSET_PX) / TREE_INDENT_PX)
+    );
 
     // We can only outdent if the cursor's desired depth is less than the item's depth.
     // But we cannot go shallower than the depth of the next visible sibling below.

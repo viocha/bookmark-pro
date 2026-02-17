@@ -3,7 +3,14 @@ import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings } from '@/hooks/useSettings';
 import { isProtectedNode, normalizeFolderChildren } from '@/lib/bookmark-api';
 import { moveBookmark } from '@/lib/bookmark-api';
-import { flattenTree, computeDropIndicator, FlattenedNode, DropIndicator } from '@/lib/tree-utils';
+import {
+  flattenTree,
+  computeDropIndicator,
+  FlattenedNode,
+  DropIndicator,
+  TREE_INDENT_PX,
+  TREE_ICON_ANCHOR_OFFSET_PX,
+} from '@/lib/tree-utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TreeNodeContent } from './TreeNodeContent';
 import {
@@ -76,7 +83,7 @@ function DndTreeNode({
       {isTarget && zone === 'before' && (
         <div
           className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-10 rounded-full"
-          style={{ marginLeft: `${lineDepth * 14 + 8}px` }}
+          style={{ marginLeft: `${lineDepth * TREE_INDENT_PX + TREE_ICON_ANCHOR_OFFSET_PX}px` }}
         />
       )}
       {/* Folder highlight when dropping INSIDE */}
@@ -92,7 +99,7 @@ function DndTreeNode({
       {isTarget && zone === 'after' && (
         <div
           className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10 rounded-full"
-          style={{ marginLeft: `${lineDepth * 14 + 8}px` }}
+          style={{ marginLeft: `${lineDepth * TREE_INDENT_PX + TREE_ICON_ANCHOR_OFFSET_PX}px` }}
         />
       )}
     </div>
