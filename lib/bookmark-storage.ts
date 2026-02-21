@@ -67,30 +67,68 @@ export async function folderExists(folderId: string): Promise<boolean> {
   }
 }
 
-/**
- * Derive recent bookmark folders from the user's actual recent bookmarks.
- * Scans the most recent bookmarks and returns their unique parent folders.
- * This works immediately after install without any prior plugin usage.
- */
 export async function getRecentBookmarkFolders(): Promise<RecentFolder[]> {
   try {
     const recentItems = await chrome.bookmarks.getRecent(100);
     const seen = new Set<string>();
     const folders: RecentFolder[] = [];
 
+    const ROOT_NAMES: Record<string, string> = {
+      '1': '书签栏',
+      '2': '其他书签',
+      '3': '移动设备书签',
+    };
+
+    // Also fetch the entire tree to find recently created/modified folders
+    const tree = await chrome.bookmarks.getTree();
+    const allFolders: chrome.bookmarks.BookmarkTreeNode[] = [];
+    
+    function traverse(nodes: chrome.bookmarks.BookmarkTreeNode[]) {
+      for (const node of nodes) {
+        if (!node.url && node.id !== '0') {
+          allFolders.push(node);
+        }
+        if (node.children) {
+          traverse(node.children);
+        }
+      }
+    }
+    traverse(tree);
+    
+    // Most recently created folders
+    const recentCreatedFolders = [...allFolders]
+      .sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0))
+      .slice(0, 15);
+
+    // Combine recent items' parent IDs and recently created folders
+    interface FolderCandidate {
+      id: string;
+      time: number;
+    }
+    const candidates: FolderCandidate[] = [];
+
     for (const item of recentItems) {
-      if (!item.parentId || seen.has(item.parentId)) continue;
-      seen.add(item.parentId);
+      if (item.parentId) {
+        candidates.push({ id: item.parentId, time: item.dateAdded || 0 });
+      }
+    }
+
+    for (const folder of recentCreatedFolders) {
+      candidates.push({ id: folder.id, time: folder.dateAdded || 0 });
+    }
+
+    // Sort combined list by time descending
+    candidates.sort((a, b) => b.time - a.time);
+
+    for (const { id } of candidates) {
+      if (folders.length >= MAX_RECENT_FOLDERS) break;
+      if (seen.has(id)) continue;
+      seen.add(id);
 
       try {
-        const [parent] = await chrome.bookmarks.get(item.parentId);
+        const [parent] = await chrome.bookmarks.get(id);
         if (!parent || parent.url) continue; // skip if not a folder
 
-        const ROOT_NAMES: Record<string, string> = {
-          '1': '书签栏',
-          '2': '其他书签',
-          '3': '移动设备书签',
-        };
         const title = parent.title || ROOT_NAMES[parent.id] || '';
         const path = await buildFolderPath(parent.id);
         folders.push({ id: parent.id, title, path });
