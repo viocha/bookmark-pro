@@ -12,7 +12,8 @@ export default defineBackground(() => {
 
   // SW 启动时立即从 storage 恢复状态到内存
   chrome.storage.session.get(STORAGE_KEY).then((data) => {
-    const ids: number[] = data[STORAGE_KEY] ?? [];
+    const rawIds = data[STORAGE_KEY];
+    const ids = Array.isArray(rawIds) ? rawIds.filter((id): id is number => typeof id === 'number') : [];
     ids.forEach((id) => openSidePanels.add(id));
   });
 
@@ -99,11 +100,48 @@ export default defineBackground(() => {
     }
   }
 
+  function isMissingTabError(message?: string) {
+    if (!message) return false;
+    return message.includes('No tab with id');
+  }
+
+  function getTabSafely(tabId: number): Promise<chrome.tabs.Tab | null> {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.get(tabId, (tab) => {
+        const error = chrome.runtime.lastError;
+        if (!error) {
+          resolve(tab);
+          return;
+        }
+        if (isMissingTabError(error.message)) {
+          resolve(null);
+          return;
+        }
+        reject(new Error(error.message));
+      });
+    });
+  }
+
+  function setActionForTabSafely(
+    run: (callback: () => void) => void,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      run(() => {
+        const error = chrome.runtime.lastError;
+        if (!error || isMissingTabError(error.message)) {
+          resolve();
+          return;
+        }
+        reject(new Error(error.message));
+      });
+    });
+  }
+
   async function updateIconForTab(tabId: number, url?: string) {
     try {
       if (!url) {
-        const tab = await chrome.tabs.get(tabId);
-        url = tab.url;
+        const tab = await getTabSafely(tabId);
+        url = tab?.url;
       }
       if (!url) return;
 
@@ -111,10 +149,15 @@ export default defineBackground(() => {
       const imageData = bookmark ? await getFilledIcon() : await getUnfilledIcon();
       const title = bookmark ? 'Bookmark Pro - 已收藏' : 'Bookmark Pro - 未收藏';
 
-      await chrome.action.setIcon({ tabId, imageData });
-      await chrome.action.setTitle({ tabId, title });
-    } catch {
+      // 使用 callback 读取 runtime.lastError，避免 "Unchecked runtime.lastError" 噪音。
+      await setActionForTabSafely((callback) => chrome.action.setIcon({ tabId, imageData }, callback));
+      await setActionForTabSafely((callback) => chrome.action.setTitle({ tabId, title }, callback));
+    } catch (error) {
       // Tab may have been closed during async operations — ignore
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isMissingTabError(message)) {
+        console.error('[Bookmark Pro] Failed to update action icon state', error);
+      }
     }
   }
 
