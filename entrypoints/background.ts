@@ -21,14 +21,19 @@ export default defineBackground(() => {
     chrome.storage.session.set({ [STORAGE_KEY]: [...openSidePanels] });
   }
 
-  // 监听来自 sidepanel 的状态消息
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'sidepanel-opened' && msg.windowId != null) {
-      openSidePanels.add(msg.windowId);
-      persistState();
-    } else if (msg.type === 'sidepanel-closed' && msg.windowId != null) {
-      openSidePanels.delete(msg.windowId);
-      persistState();
+  // 监听来自 sidepanel 的长连接以跟踪真实打开/关闭状态
+  chrome.runtime.onConnect.addListener((port) => {
+    if (port.name.startsWith('sidepanel-')) {
+      const windowId = parseInt(port.name.replace('sidepanel-', ''), 10);
+      if (!isNaN(windowId)) {
+        openSidePanels.add(windowId);
+        persistState();
+
+        port.onDisconnect.addListener(() => {
+          openSidePanels.delete(windowId);
+          persistState();
+        });
+      }
     }
   });
 
@@ -163,12 +168,12 @@ export default defineBackground(() => {
 
   // Update when tab is activated / URL changes
   chrome.tabs.onActivated.addListener((activeInfo) => {
-    updateIconForTab(activeInfo.tabId).catch(() => {});
+    updateIconForTab(activeInfo.tabId).catch(() => { });
   });
 
   chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.url || changeInfo.status === 'complete') {
-      if (tab.id) updateIconForTab(tab.id, tab.url).catch(() => {});
+      if (tab.id) updateIconForTab(tab.id, tab.url).catch(() => { });
     }
   });
 

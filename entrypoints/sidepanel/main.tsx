@@ -3,15 +3,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import '@/assets/globals.css';
 
-// 通知 background 侧栏已打开
+// 建立与 background 的长连接，用于可靠监听侧栏关闭（原生 x 按钮）
 chrome.windows.getCurrent().then((win) => {
   if (win.id != null) {
-    chrome.runtime.sendMessage({ type: 'sidepanel-opened', windowId: win.id });
-
-    // 侧栏关闭时（页面卸载前）通知 background
-    window.addEventListener('beforeunload', () => {
-      chrome.runtime.sendMessage({ type: 'sidepanel-closed', windowId: win.id });
-    });
+    chrome.runtime.connect({ name: `sidepanel-${win.id}` });
   }
 });
 
