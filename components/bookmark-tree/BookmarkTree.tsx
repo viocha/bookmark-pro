@@ -468,7 +468,7 @@ export function BookmarkTree() {
 
           <DragOverlay dropAnimation={null}>
             {activeItem ? (
-              <div className="bg-background border border-border rounded shadow-md opacity-90">
+              <div className="bg-background border border-border rounded shadow-md">
                 <TreeNodeContent item={activeItem} isOverlay />
               </div>
             ) : null}

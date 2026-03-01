@@ -194,12 +194,41 @@ export function computeDropIndicator(
 
   const parentId = targetItem.parentId ?? '0';
   const idx = computeInsertIndexAfter(targetItem.index, activeItem, parentId);
-  return {
+
+  const afterResult: DropIndicator = {
     overId,
     zone: 'after',
     depth: targetDepth,
     projection: { parentId, index: idx },
   };
+
+  // ── Normalize 'after X' → 'before nextVisible' ─────────────────────────
+  // When zone is 'after' for item A, and 'before' for the immediately
+  // following item B, both represent the same logical insertion gap but render
+  // at DIFFERENT Y positions (bottom-0 of A vs top-0 of B).  Converting every
+  // 'after' result to the equivalent 'before' of the next visible item ensures
+  // a single, consistent indicator line regardless of which item the cursor
+  // happens to be over at any given moment.
+  //
+  // We preserve the already-computed depth & projection (which may reflect
+  // horizontal outdent) — only the anchor item and zone change.
+  // ────────────────────────────────────────────────────────────────────────
+  let nextVisibleIdx = overIndex + 1;
+  // Skip the active (dragged) item — it will disappear after the drop.
+  while (nextVisibleIdx < flatItems.length && flatItems[nextVisibleIdx].id === activeId) {
+    nextVisibleIdx++;
+  }
+  if (nextVisibleIdx < flatItems.length) {
+    return {
+      overId: flatItems[nextVisibleIdx].id,
+      zone: 'before',
+      depth: afterResult.depth,
+      projection: afterResult.projection,
+    };
+  }
+
+  // No next item (over the last visible node) — keep the original 'after'.
+  return afterResult;
 }
 
 function computeInsertIndex(overItemIndex: number, activeItem: FlattenedNode, parentId: string): number {
