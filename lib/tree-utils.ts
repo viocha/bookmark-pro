@@ -213,8 +213,19 @@ export function computeDropIndicator(
   // We preserve the already-computed depth & projection (which may reflect
   // horizontal outdent) — only the anchor item and zone change.
   // ────────────────────────────────────────────────────────────────────────
-  let nextVisibleIdx = overIndex + 1;
-  // Skip the active (dragged) item — it will disappear after the drop.
+  const nextIdx = overIndex + 1;
+
+  // If the immediately following item IS the dragged item, do NOT normalize.
+  // Keeping 'after overItem' renders the line at the BOTTOM of overItem, which is
+  // visually ABOVE the dragged item's ghost slot — letting the user insert
+  // before the item's original position.
+  if (nextIdx < flatItems.length && flatItems[nextIdx].id === activeId) {
+    return afterResult;
+  }
+
+  // Otherwise normalize: 'after overItem' → 'before nextNonActiveItem'
+  // so the indicator is consistent regardless of which adjacent item the cursor is over.
+  let nextVisibleIdx = nextIdx;
   while (nextVisibleIdx < flatItems.length && flatItems[nextVisibleIdx].id === activeId) {
     nextVisibleIdx++;
   }
