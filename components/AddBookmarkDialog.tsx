@@ -26,7 +26,6 @@ export function AddBookmarkDialog() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [position, setPosition] = useState<InsertPosition>('bottom');
-  const initialPositionRef = useRef<InsertPosition>('bottom');
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -34,7 +33,6 @@ export function AddBookmarkDialog() {
       setTitle(addBookmarkTitle);
       setUrl(addBookmarkUrl);
       setPosition(bookmarkInsertPosition);
-      initialPositionRef.current = bookmarkInsertPosition;
       // Select title text after dialog renders
       requestAnimationFrame(() => {
         titleInputRef.current?.focus();
@@ -52,16 +50,16 @@ export function AddBookmarkDialog() {
     if (Object.keys(changes).length > 0) {
       await editNode(addBookmarkNode.id, changes);
     }
-    // If position changed, move the bookmark
-    if (position !== initialPositionRef.current && addBookmarkNode.parentId) {
+    // Always apply the selected insert position
+    if (addBookmarkNode.parentId) {
       const parentId = addBookmarkNode.parentId;
-      const children = await chrome.bookmarks.getChildren(parentId);
-      const folders = children.filter(c => !c.url);
       if (position === 'top') {
+        const children = await chrome.bookmarks.getChildren(parentId);
+        const folders = children.filter(c => !c.url);
         await moveNode(addBookmarkNode.id, { parentId, index: folders.length });
       } else {
-        // Move to end
-        await moveNode(addBookmarkNode.id, { parentId, index: children.length - 1 });
+        // Append to end (no index = bottom)
+        await moveNode(addBookmarkNode.id, { parentId });
       }
     }
     closeAddBookmarkDialog();

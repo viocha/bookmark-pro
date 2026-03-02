@@ -1,3 +1,4 @@
+import { useRef, useEffect, useCallback } from 'react';
 import { FlattenedNode } from '@/lib/tree-utils';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings } from '@/hooks/useSettings';
@@ -33,6 +34,7 @@ import {
   CheckSquare2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface TreeNodeContentProps {
   item: FlattenedNode;
@@ -42,6 +44,12 @@ interface TreeNodeContentProps {
   attributes?: Record<string, any>;
   setNodeRef?: (node: HTMLElement | null) => void;
   flatIds?: string[];
+  renamingId?: string | null;
+  renamingTitle?: string;
+  onRenameStart?: (id: string, title: string) => void;
+  onRenameCommit?: () => void;
+  onRenameCancel?: () => void;
+  onRenameTitleChange?: (v: string) => void;
 }
 
 export function TreeNodeContent({
@@ -52,6 +60,12 @@ export function TreeNodeContent({
   attributes,
   setNodeRef,
   flatIds = [],
+  renamingId = null,
+  renamingTitle = '',
+  onRenameStart,
+  onRenameCommit,
+  onRenameCancel,
+  onRenameTitleChange,
 }: TreeNodeContentProps) {
   const {
     expandedIds,
@@ -82,8 +96,33 @@ export function TreeNodeContent({
   const isSelected = selectedIds.has(node.id);
   const hasMultiSelection = selectedIds.size > 1;
 
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const renameFocusedRef = useRef(false);
+  const renameCancelingRef = useRef(false);
+  const isRenaming = folder && renamingId === node.id && !isOverlay;
+
+  useEffect(() => {
+    if (isRenaming) {
+      renameFocusedRef.current = false;
+      renameCancelingRef.current = false;
+      const timer = setTimeout(() => {
+        renameInputRef.current?.focus();
+        renameInputRef.current?.select();
+        renameFocusedRef.current = true;
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isRenaming]);
+
+  const handleRenameBlur = useCallback(() => {
+    if (renameFocusedRef.current && !renameCancelingRef.current) {
+      onRenameCommit?.();
+    }
+  }, [onRenameCommit]);
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isRenaming) return;
     if (multiSelectMode) {
       // In multi-select mode: click toggles selection (skip protected)
       e.preventDefault();
@@ -343,11 +382,28 @@ export function TreeNodeContent({
           <FileText className="size-3.5 text-muted-foreground" />
         )}
       </span>
-      <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
-      {folder && item.childCount > 0 && (
-        <span className="text-[10px] text-muted-foreground ml-auto shrink-0 pr-1">
-          {item.childCount}
-        </span>
+      {isRenaming ? (
+        <Input
+          ref={renameInputRef}
+          value={renamingTitle}
+          onChange={(e) => onRenameTitleChange?.(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.stopPropagation(); onRenameCommit?.(); }
+            if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); renameCancelingRef.current = true; onRenameCancel?.(); }
+          }}
+          onBlur={handleRenameBlur}
+          className="h-5 text-xs px-1 py-0 ml-0.5 flex-1 min-w-0"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <>
+          <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
+          {folder && item.childCount > 0 && (
+            <span className="text-[10px] text-muted-foreground ml-auto shrink-0 pr-1">
+              {item.childCount}
+            </span>
+          )}
+        </>
       )}
     </>
   );
@@ -379,9 +435,9 @@ export function TreeNodeContent({
       {!isProtected && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleEdit} className="text-xs h-7">
+          <ContextMenuItem onSelect={() => onRenameStart?.(node.id, node.title)} className="text-xs h-7">
             <Pencil className="size-3.5 mr-2" />
-            编辑
+            重命名
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => openMoveDialog(node)} className="text-xs h-7">
             <FolderInput className="size-3.5 mr-2" />

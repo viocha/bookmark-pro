@@ -58,10 +58,12 @@ export function FolderTreeItem({
   const isContextActive = contextMenuId === node.id;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasFocusedRef = useRef(false);
+  const cancelingRef = useRef(false);
 
   useEffect(() => {
     if (isEditing) {
       hasFocusedRef.current = false;
+      cancelingRef.current = false;
       const timer = setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -72,7 +74,7 @@ export function FolderTreeItem({
   }, [isEditing]);
 
   const handleBlur = useCallback(() => {
-    if (hasFocusedRef.current) {
+    if (hasFocusedRef.current && !cancelingRef.current) {
       onCommitRename();
     }
   }, [onCommitRename]);
@@ -129,8 +131,16 @@ export function FolderTreeItem({
           value={editingTitle}
           onChange={(e) => onEditingTitleChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') onCommitRename();
-            if (e.key === 'Escape') onCancelRename();
+            if (e.key === 'Enter') {
+              e.stopPropagation();
+              onCommitRename();
+            }
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              e.preventDefault();
+              cancelingRef.current = true;
+              onCancelRename();
+            }
           }}
           onBlur={handleBlur}
           className="h-5 text-xs px-1 py-0 ml-0.5 flex-1 min-w-0"

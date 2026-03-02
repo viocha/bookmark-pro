@@ -2,7 +2,7 @@
   "name": "bookmark-pro",
   "description": "A powerful Chrome bookmark manager with tree view, search, and drag-and-drop",
   "private": true,
-  "version": "1.5.4",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",

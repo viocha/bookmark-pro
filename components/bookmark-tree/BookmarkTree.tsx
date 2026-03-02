@@ -42,11 +42,23 @@ function DndTreeNode({
   isDragging,
   dropIndicator,
   flatIds,
+  renamingId,
+  renamingTitle,
+  onRenameStart,
+  onRenameCommit,
+  onRenameCancel,
+  onRenameTitleChange,
 }: {
   item: FlattenedNode;
   isDragging: boolean;
   dropIndicator: DropIndicator | null;
   flatIds: string[];
+  renamingId: string | null;
+  renamingTitle: string;
+  onRenameStart: (id: string, title: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onRenameTitleChange: (v: string) => void;
 }) {
   const isProtected = isProtectedNode(item.id);
 
@@ -56,7 +68,7 @@ function DndTreeNode({
     setNodeRef: setDragRef,
   } = useDraggable({
     id: item.id,
-    disabled: isProtected,
+    disabled: isProtected || renamingId === item.id,
   });
 
   const { setNodeRef: setDropRef } = useDroppable({
@@ -94,6 +106,12 @@ function DndTreeNode({
         attributes={attributes}
         setNodeRef={setNodeRef}
         flatIds={flatIds}
+        renamingId={renamingId}
+        renamingTitle={renamingTitle}
+        onRenameStart={onRenameStart}
+        onRenameCommit={onRenameCommit}
+        onRenameCancel={onRenameCancel}
+        onRenameTitleChange={onRenameTitleChange}
       />
       {/* Insertion line AFTER */}
       {isTarget && zone === 'after' && (
@@ -107,13 +125,15 @@ function DndTreeNode({
 }
 
 export function BookmarkTree() {
-  const { tree, expandedIds, moveNode } = useBookmarkStore();
+  const { tree, expandedIds, moveNode, editNode } = useBookmarkStore();
   const loadTree = useBookmarkStore((s) => s.loadTree);
   const saveTreeState = useSettings((s) => s.saveTreeState);
   const settingsScrollTop = useSettings((s) => s.scrollTop);
   const settingsLoaded = useSettings((s) => s.loaded);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingTitle, setRenamingTitle] = useState('');
   const scrollRestoredRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -426,6 +446,28 @@ export function BookmarkTree() {
     clearHoverTimer();
   }, [clearHoverTimer]);
 
+  const handleRenameStart = useCallback((id: string, title: string) => {
+    setTimeout(() => {
+      setRenamingId(id);
+      setRenamingTitle(title);
+    }, 80);
+  }, []);
+
+  const handleRenameCommit = useCallback(async () => {
+    if (!renamingId) return;
+    const trimmed = renamingTitle.trim();
+    if (trimmed) {
+      await editNode(renamingId, { title: trimmed });
+    }
+    setRenamingId(null);
+    setRenamingTitle('');
+  }, [renamingId, renamingTitle, editNode]);
+
+  const handleRenameCancel = useCallback(() => {
+    setRenamingId(null);
+    setRenamingTitle('');
+  }, []);
+
   return (
     <div className="relative h-full">
       <ScrollArea className="h-full">
@@ -462,6 +504,12 @@ export function BookmarkTree() {
                 isDragging={ri.item!.id === activeId}
                 dropIndicator={activeId ? dropIndicator : null}
                 flatIds={flatIds}
+                renamingId={renamingId}
+                renamingTitle={renamingTitle}
+                onRenameStart={handleRenameStart}
+                onRenameCommit={handleRenameCommit}
+                onRenameCancel={handleRenameCancel}
+                onRenameTitleChange={setRenamingTitle}
               />
             );
           })}

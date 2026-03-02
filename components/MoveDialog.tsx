@@ -36,6 +36,23 @@ export function MoveDialog() {
   const [treeSearch, setTreeSearch] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // --- New-folder dialog state ---
+  const [nfOpen, setNfOpen] = useState(false);
+  const [nfParentId, setNfParentId] = useState<string | null>(null);
+  const [nfTitle, setNfTitle] = useState('');
+  const [nfPosition, setNfPosition] = useState<InsertPosition>(settingsFolderPos);
+  const nfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (nfOpen) {
+      const timer = setTimeout(() => {
+        nfInputRef.current?.focus();
+        nfInputRef.current?.select();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [nfOpen]);
+
   const isBatchMode = moveTargetNodes.length > 1;
   const hasFolders = isBatchMode && moveTargetNodes.some((n) => isFolder(n));
   const hasBookmarks = isBatchMode && moveTargetNodes.some((n) => !isFolder(n));
@@ -92,20 +109,29 @@ export function MoveDialog() {
 
   // --- Context menu handlers ---
 
-  const handleCreateFolder = useCallback(async (parentId: string) => {
+  const handleCreateFolder = useCallback((parentId: string) => {
+    setNfParentId(parentId);
+    setNfTitle('新建文件夹');
+    setNfPosition(settingsFolderPos);
+    setNfOpen(true);
+  }, [settingsFolderPos]);
+
+  const handleNewFolderCreate = useCallback(async () => {
+    if (!nfParentId || !nfTitle.trim()) return;
     try {
-      const newFolder = await createBookmark(parentId, '新文件夹');
-      // Expand the parent so the new folder is visible
-      setExpandedIds((prev) => new Set(prev).add(parentId));
+      const children = await chrome.bookmarks.getChildren(nfParentId);
+      const folders = children.filter((c) => !c.url);
+      const insertIndex = nfPosition === 'top' ? 0 : folders.length;
+      const newFolder = await createBookmark(nfParentId, nfTitle.trim(), undefined, insertIndex);
+      setNfOpen(false);
+      setExpandedIds((prev) => new Set(prev).add(nfParentId));
       await refreshTree();
       await loadTree();
-      // Start inline rename on the new folder
-      setEditingId(newFolder.id);
-      setEditingTitle('新文件夹');
+      setSelectedId(newFolder.id);
     } catch (err) {
       console.error('[Bookmark Pro] create folder in MoveDialog error:', err);
     }
-  }, [refreshTree, loadTree]);
+  }, [nfParentId, nfTitle, nfPosition, refreshTree, loadTree]);
 
   const handleStartRename = useCallback((id: string, title: string) => {
     // Delay so ContextMenu fully unmounts before entering edit mode
@@ -270,7 +296,16 @@ export function MoveDialog() {
 
   return (
     <Dialog open={moveDialogOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[340px] p-4 gap-3" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent
+        className="max-w-[340px] p-4 gap-3"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          if (editingId) {
+            e.preventDefault();
+            handleCancelRename();
+          }
+        }}
+      >
         <DialogHeader className="pb-0 pr-6 overflow-hidden">
           <DialogTitle className="text-sm truncate min-w-0" title={dialogTitle}>
             {dialogTitle}
@@ -392,6 +427,57 @@ export function MoveDialog() {
           </Button>
         </div>
       </DialogContent>
+      {/* New-folder sub-dialog */}
+      <Dialog open={nfOpen} onOpenChange={(open) => { if (!open) setNfOpen(false); }}>
+        <DialogContent className="max-w-[300px] p-4 gap-3">
+          <DialogHeader className="pb-0">
+            <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+          </DialogHeader>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">名称</label>
+            <Input
+              ref={nfInputRef}
+              value={nfTitle}
+              onChange={(e) => setNfTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNewFolderCreate();
+                if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); setNfOpen(false); }
+              }}
+              placeholder="文件夹名称"
+              className="h-7 text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">插入位置</label>
+            <div className="flex gap-1">
+              <Button
+                variant={nfPosition === 'top' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setNfPosition('top')}
+                className="h-7 text-xs flex-1"
+              >
+                顶部
+              </Button>
+              <Button
+                variant={nfPosition === 'bottom' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setNfPosition('bottom')}
+                className="h-7 text-xs flex-1"
+              >
+                底部
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setNfOpen(false)} className="h-7 text-xs">
+              取消
+            </Button>
+            <Button size="sm" onClick={handleNewFolderCreate} disabled={!nfTitle.trim()} className="h-7 text-xs">
+              创建
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
