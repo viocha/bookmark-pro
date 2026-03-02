@@ -17,6 +17,8 @@ import {
   searchBookmarks,
 } from '@/lib/bookmark-api';
 import { buildFolderTree, getAncestorIds, findFolderNode, filterFolderTree, collectAllIds } from '@/lib/folder-tree';
+import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 import type { FolderNode } from '@/lib/folder-tree';
 import { FolderTreeItem } from '@/components/FolderTreeItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -64,6 +66,7 @@ export default function App() {
   const [treeSearch, setTreeSearch] = useState('');
   const treeSearchRef = useRef<HTMLInputElement>(null);
   const treeScrollRef = useRef<HTMLDivElement>(null);
+
 
   // ─── Init: load current tab bookmark ───
   useEffect(() => {
@@ -350,9 +353,42 @@ export default function App() {
   const handleDeleteFolder = useCallback(async (id: string) => {
     if (isProtectedNode(id)) return;
     try {
+      // Snapshot full subtree for undo
+      const [nodeInfo] = await chrome.bookmarks.getSubTree(id);
+      if (!nodeInfo) return;
+      const deepClone = (n: chrome.bookmarks.BookmarkTreeNode): chrome.bookmarks.BookmarkTreeNode => ({
+        ...n,
+        children: n.children?.map(deepClone),
+      });
+      const saved = deepClone(nodeInfo);
+
       await removeBookmarkTree(id);
-      await refreshTree();
       if (selectedId === id) setSelectedId(null);
+      await refreshTree();
+
+      const recreate = async (parentId: string, nodes: chrome.bookmarks.BookmarkTreeNode[]) => {
+        for (const child of nodes) {
+          if (child.url) {
+            await createBookmark(parentId, child.title, child.url);
+          } else {
+            const newFolder = await createBookmark(parentId, child.title);
+            if (child.children?.length) await recreate(newFolder.id, child.children);
+          }
+        }
+      };
+
+      toast('已删除文件夹', {
+        description: saved.title || '(无标题)',
+        action: {
+          label: '撤销',
+          onClick: async () => {
+            const folder = await createBookmark(saved.parentId ?? '1', saved.title, undefined, saved.index);
+            if (saved.children?.length) await recreate(folder.id, saved.children);
+            await refreshTree();
+          },
+        },
+        duration: 5000,
+      });
     } catch (err) {
       console.error('[Bookmark Pro Popup] delete folder error:', err);
     }
@@ -389,7 +425,7 @@ export default function App() {
     const displayExpandedIds = trimmedSearch ? collectAllIds(displayTree) : expandedIds;
 
     return (
-      <div className="w-[360px] flex flex-col animate-in fade-in duration-150">
+      <div className="w-[360px] flex flex-col">
         <div className="px-3 pt-3 pb-2">
           <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'} — 选择文件夹</h2>
         </div>
@@ -466,13 +502,14 @@ export default function App() {
             完成
           </Button>
         </div>
+        <Toaster />
       </div>
     );
   }
 
   // ─── Compact view ───
   return (
-    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3 animate-in fade-in duration-150', dropdownOpen && 'min-h-[520px]')}>
+    <div className={cn('w-[360px] flex flex-col gap-2.5 p-3', dropdownOpen && 'min-h-[520px]')}>
       {/* Header */}
       <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'}</h2>
       {/* Name */}
@@ -620,6 +657,7 @@ export default function App() {
           完成
         </Button>
       </div>
+      <Toaster />
     </div>
   );
 }

@@ -440,6 +440,11 @@ export function TreeNodeContent({
         删除
       </ContextMenuItem>
       <ContextMenuSeparator />
+      <ContextMenuItem onSelect={handleCopyLink} className="text-xs h-7">
+        <Copy className="size-3.5 mr-2" />
+        复制链接
+      </ContextMenuItem>
+      <ContextMenuSeparator />
       <ContextMenuItem onSelect={handleOpenNewTab} className="text-xs h-7">
         <ExternalLink className="size-3.5 mr-2" />
         在新标签页打开
@@ -451,11 +456,6 @@ export function TreeNodeContent({
       <ContextMenuItem onSelect={handleOpenIncognito} className="text-xs h-7">
         <EyeOff className="size-3.5 mr-2" />
         在隐私窗口打开
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={handleCopyLink} className="text-xs h-7">
-        <Copy className="size-3.5 mr-2" />
-        复制链接
       </ContextMenuItem>
       {!multiSelectMode && (
         <>

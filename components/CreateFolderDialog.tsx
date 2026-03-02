@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
@@ -16,11 +16,18 @@ export function CreateFolderDialog() {
   const folderInsertPosition = useSettings((s) => s.folderInsertPosition);
   const [title, setTitle] = useState('');
   const [position, setPosition] = useState<InsertPosition>('bottom');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync default position from settings when dialog opens
+  // Sync default position from settings when dialog opens, set default name and auto-select
   useEffect(() => {
     if (createFolderDialogOpen) {
       setPosition(folderInsertPosition);
+      setTitle('新建文件夹');
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [createFolderDialogOpen, folderInsertPosition]);
 
@@ -53,12 +60,12 @@ export function CreateFolderDialog() {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">名称</label>
           <Input
+            ref={inputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="文件夹名称"
             className="h-7 text-xs"
-            autoFocus
           />
         </div>
         <div>

@@ -93,6 +93,7 @@ export function AddBookmarkDialog() {
               ref={titleInputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDone(); }}
               className="h-7 text-xs"
             />
           </div>
@@ -101,6 +102,7 @@ export function AddBookmarkDialog() {
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDone(); }}
               className="h-7 text-xs"
             />
           </div>
