@@ -252,9 +252,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   sortFoldersFirst: async () => {
     // Recursively sort all folders so folders come before bookmarks
+    let adjustedCount = 0;
     const sortChildren = async (node: chrome.bookmarks.BookmarkTreeNode) => {
       if (!node.children || node.children.length === 0) return;
-      await normalizeFolderChildren(node.id);
+      const changed = await normalizeFolderChildren(node.id);
+      if (changed) adjustedCount++;
       // Re-fetch children after normalization
       const updatedChildren = await chrome.bookmarks.getChildren(node.id);
       const folders = updatedChildren.filter(c => !c.url);
@@ -279,7 +281,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       set({ _suppressReload: false });
       await get().loadTree();
     }
-    toast('已完成排序', { description: '所有文件夹已移至书签前方', duration: 3000 });
+    if (adjustedCount === 0) {
+      toast('无需调整', { description: '所有文件夹的子项顺序已符合规范', duration: 3000 });
+    } else {
+      toast('排序完成', { description: `已调整 ${adjustedCount} 个文件夹的子项顺序`, duration: 3000 });
+    }
   },
 
   editNode: async (id, changes) => {

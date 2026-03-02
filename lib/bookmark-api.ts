@@ -69,21 +69,25 @@ export function getAllUrls(node: chrome.bookmarks.BookmarkTreeNode): string[] {
 /**
  * Normalize a folder's children so that all sub-folders come before bookmarks.
  * Preserves relative order within each group.
+ * @returns true if the order was actually changed, false if already correct.
  */
-export async function normalizeFolderChildren(parentId: string): Promise<void> {
+export async function normalizeFolderChildren(parentId: string): Promise<boolean> {
   // Root node ("0") cannot be modified by Chrome API
-  if (parentId === '0') return;
+  if (parentId === '0') return false;
   const children = await chrome.bookmarks.getChildren(parentId);
   const folders = children.filter((c) => !c.url);
   const bookmarks = children.filter((c) => !!c.url);
   const sorted = [...folders, ...bookmarks];
   let current = [...children];
+  let changed = false;
   for (let i = 0; i < sorted.length; i++) {
     if (sorted[i].id !== current[i]?.id) {
       await chrome.bookmarks.move(sorted[i].id, { parentId, index: i });
       current = await chrome.bookmarks.getChildren(parentId);
+      changed = true;
     }
   }
+  return changed;
 }
 
 // Get the path of a bookmark node (e.g. "书签栏 / 工作 / 开发")
