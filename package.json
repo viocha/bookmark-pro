@@ -1,6 +1,6 @@
 {
   "name": "bookmark-pro",
-  "description": "A powerful Chrome bookmark manager with tree view, search, and drag-and-drop",
+  "description": "强大的书签管理器 - 侧栏树形视图、拖拽排序、全局搜索、快速收藏",
   "private": true,
   "version": "1.6.2",
   "type": "module",
