@@ -414,7 +414,7 @@ export function TreeNodeContent({
         className={cn(
           'flex items-center h-7 pr-2 cursor-pointer select-none',
           'hover:bg-accent/60 active:bg-accent',
-          'text-xs gap-0.5 overflow-hidden px-2'
+          'text-xs gap-0.5 overflow-hidden'
         )}
       >
         {innerContent}
