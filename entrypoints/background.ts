@@ -23,10 +23,29 @@ export default defineBackground(() => {
       prevOpenSidePanels.add(id);
     });
     stateRestored = true;
+    updateDebugMenu();
   });
 
   function persistState() {
     chrome.storage.session.set({ [STORAGE_KEY]: [...openSidePanels] });
+    updateDebugMenu();
+  }
+
+  // 更新调试菜单标题（在状态变更后调用）
+  // MV3 Service Worker 不支持 contextMenus.onShown，只能主动推送。
+  // 不依赖 getCurrent()——SW 无用户交互上下文时该 API 会失败。
+  function updateDebugMenu() {
+    const restored = stateRestored ? '' : ' SW↑';
+    const ids = [...openSidePanels];
+    const title = ids.length > 0
+      ? `[调试] 侧栏已打开的窗口: [${ids.join(', ')}]${restored}`
+      : `[调试] 侧栏：全部关闭${restored}`;
+    chrome.contextMenus.update('debug-state', { title }).catch((err: Error) => {
+      // 首次安装时 stateRestorePromise 在 onInstalled 之前 resolve，菜单尚未创建，
+      // 此错误是预期行为（onInstalled 回调内会再次调用 updateDebugMenu 补正）。
+      if (err?.message?.includes('Cannot find menu item')) return;
+      console.error('[Bookmark Pro] Failed to update debug-state context menu:', err);
+    });
   }
 
   // 监听来自 sidepanel 的长连接以跟踪真实打开/关闭状态
@@ -65,12 +84,24 @@ export default defineBackground(() => {
     }
   }
 
-  // ── Context menu: open sidebar ──
+  // ── Context menu ──
+  // onInstalled 在首次安装/更新时触发，此时 stateRestorePromise 可能已先 resolve（纯内存操作极快），
+  // 导致 updateDebugMenu() 在菜单创建前就运行、update 失败。
+  // 因此在创建完菜单后立即调用一次 updateDebugMenu() 以同步当前状态。
   chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
       id: 'toggle-sidebar',
       title: '切换书签管理侧栏',
-      contexts: ['action'], // right-click on extension icon
+      contexts: ['action'],
+    });
+    chrome.contextMenus.create({
+      id: 'debug-state',
+      title: '侧栏状态…',
+      enabled: false,
+      contexts: ['action'],
+    }, () => {
+      // 菜单已创建，立即刷新为真实状态
+      updateDebugMenu();
     });
   });
 
