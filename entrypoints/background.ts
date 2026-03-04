@@ -224,4 +224,40 @@ export default defineBackground(() => {
   chrome.bookmarks.onRemoved.addListener(() => updateActiveTabIcon());
   chrome.bookmarks.onChanged.addListener(() => updateActiveTabIcon());
   chrome.bookmarks.onMoved.addListener(() => updateActiveTabIcon());
+
+  // ── Cross-extension: handle LOCATE_BOOKMARK from Newtab Pro ──
+  // Newtab Pro sends { type: 'LOCATE_BOOKMARK', nodeId } via chrome.runtime.sendMessage(extensionId, ...).
+  // IMPORTANT: chrome.sidePanel.open() must be called **synchronously** at the top of this handler
+  // to preserve the user-gesture context that Chrome requires. sender.tab is available synchronously
+  // because the message originates from a newtab extension page (which runs inside a tab).
+  chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+    if (message?.type !== 'LOCATE_BOOKMARK' || typeof message.nodeId !== 'string') {
+      return;
+    }
+    const nodeId = message.nodeId as string;
+
+    // ── Open side panel synchronously (must happen before any await / .then) ──
+    const senderWindowId = sender.tab?.windowId;
+    if (senderWindowId != null && !openSidePanels.has(senderWindowId)) {
+      openSidePanels.add(senderWindowId);
+      persistState();
+      // Synchronous call — preserves user-gesture context propagated through sendMessage.
+      chrome.sidePanel.open({ windowId: senderWindowId });
+    }
+
+    // Persist locate request so sidepanel picks it up on mount (handles race with panel not yet rendered)
+    chrome.storage.session
+      .set({ locateRequest: { nodeId, ts: Date.now() } })
+      .catch(() => {});
+
+    // Also forward in real-time if the sidepanel is already connected
+    chrome.runtime
+      .sendMessage({ type: 'LOCATE_BOOKMARK', nodeId })
+      .catch(() => {
+        // Normal when sidepanel is not yet open
+      });
+
+    sendResponse({ ok: true });
+    return true;
+  });
 });

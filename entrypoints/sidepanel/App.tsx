@@ -24,6 +24,46 @@ export default function App() {
     setupBookmarkListeners();
   }, [loadTree]);
 
+  // ── Cross-extension: consume pending LOCATE_BOOKMARK requests ──
+  useEffect(() => {
+    // Check session storage for a locate request written by the background script
+    // (handles the case where the sidepanel was not yet open when the request arrived)
+    chrome.storage.session
+      .get('locateRequest')
+      .then((data: Record<string, { nodeId: string; ts: number } | undefined>) => {
+        const req = data.locateRequest;
+        if (req?.nodeId && Date.now() - req.ts < 30_000) {
+          chrome.storage.session.remove('locateRequest').catch(() => {});
+          // Small delay so the tree has time to fully render
+          setTimeout(() => {
+            useBookmarkStore.getState().locateNode(req.nodeId);
+          }, 350);
+        }
+      })
+      .catch(() => {});
+
+    // Also listen for real-time messages forwarded by the background script
+    // (handles the case where the sidepanel was already open)
+    const handleMessage = (message: unknown) => {
+      if (
+        message !== null &&
+        typeof message === 'object' &&
+        (message as Record<string, unknown>).type === 'LOCATE_BOOKMARK' &&
+        typeof (message as Record<string, unknown>).nodeId === 'string'
+      ) {
+        useBookmarkStore
+          .getState()
+          .locateNode((message as Record<string, unknown>).nodeId as string);
+        return true;
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col h-screen w-full">
       <Header />

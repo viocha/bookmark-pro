@@ -11,6 +11,9 @@ export default defineConfig({
     name: 'Bookmark Pro',
     description: '强大的书签管理器 - 侧栏树形视图、拖拽排序、全局搜索、快速收藏',
     permissions: ['bookmarks', 'sidePanel', 'activeTab', 'tabs', 'favicon', 'storage', 'contextMenus'],
+    externally_connectable: {
+      ids: ['*'],
+    },
     side_panel: {
       default_path: 'sidepanel.html',
     },
