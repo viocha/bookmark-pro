@@ -10,11 +10,19 @@ export default defineBackground(() => {
   const STORAGE_KEY = 'sidepanel_open_windows';
   const openSidePanels = new Set<number>();
 
-  // SW 启动时立即从 storage 恢复状态到内存
-  chrome.storage.session.get(STORAGE_KEY).then((data) => {
+  // SW 启动时从 session storage 恢复状态。
+  // 同时用 prevOpenSidePanels 记录"休眠前"的真实状态，
+  // 供 onCommand 在 await 之后判断面板原本是否打开。
+  let stateRestored = false;
+  const prevOpenSidePanels = new Set<number>();
+  const stateRestorePromise = chrome.storage.session.get(STORAGE_KEY).then((data) => {
     const rawIds = data[STORAGE_KEY];
     const ids = Array.isArray(rawIds) ? rawIds.filter((id): id is number => typeof id === 'number') : [];
-    ids.forEach((id) => openSidePanels.add(id));
+    ids.forEach((id) => {
+      openSidePanels.add(id);
+      prevOpenSidePanels.add(id);
+    });
+    stateRestored = true;
   });
 
   function persistState() {
@@ -77,7 +85,32 @@ export default defineBackground(() => {
     if (command === 'toggle-sidebar') {
       const windowId = tab?.windowId;
       if (!windowId) return;
-      toggleSidePanel(windowId);
+
+      if (stateRestored) {
+        // SW 已在运行，状态是最新的，直接切换
+        toggleSidePanel(windowId);
+        return;
+      }
+
+      // SW 刚被快捷键唤醒，openSidePanels 尚为空（等待 storage 恢复中）。
+      // 必须在此处同步调用 sidePanel.open()，以保留用户手势上下文；
+      // 若面板已开则 open() 是 no-op，不会报错。
+      chrome.sidePanel.open({ windowId });
+
+      // sidePanel.close() 不需要用户手势，可在 await 后安全调用。
+      // 等待状态恢复，然后判断面板原本是否打开（即用户是否想关闭）。
+      await stateRestorePromise;
+
+      if (prevOpenSidePanels.has(windowId)) {
+        // 面板原本是打开的 → 用户想关闭，上方 open() 是 no-op，现在关闭
+        openSidePanels.delete(windowId);
+        persistState();
+        chrome.sidePanel.close({ windowId });
+      } else {
+        // 面板原本是关闭的 → 已被上方 open() 正确打开
+        openSidePanels.add(windowId);
+        persistState();
+      }
     }
   });
 
