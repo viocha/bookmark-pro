@@ -452,15 +452,15 @@ export function TreeNodeContent({
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={handleOpenAll} className="text-xs h-7">
         <FolderOpenDot className="size-3.5 mr-2" />
-        打开所有书签
+        打开全部书签
       </ContextMenuItem>
       <ContextMenuItem onSelect={handleOpenAllNewWindow} className="text-xs h-7">
         <AppWindow className="size-3.5 mr-2" />
-        在新窗口打开所有
+        在新窗口打开全部
       </ContextMenuItem>
       <ContextMenuItem onSelect={handleOpenAllIncognito} className="text-xs h-7">
         <EyeOff className="size-3.5 mr-2" />
-        在隐私窗口打开所有
+        在隐私窗口打开全部
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => expandAllUnder(node)} className="text-xs h-7">
