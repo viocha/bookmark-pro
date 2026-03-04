@@ -444,6 +444,13 @@ export function BookmarkTree() {
     setActiveId(null);
     setDropIndicator(null);
     clearHoverTimer();
+    // dnd-kit 在 Esc 取消拖拽后会释放指针捕获，后续的 pointerup 仍会触发
+    // click 事件并打开书签。在此注册一次性 capture 阶段拦截器来阻止该 click。
+    window.addEventListener(
+      'click',
+      (e) => { e.preventDefault(); e.stopPropagation(); },
+      { capture: true, once: true }
+    );
   }, [clearHoverTimer]);
 
   const handleRenameStart = useCallback((id: string, title: string) => {
@@ -516,7 +523,10 @@ export function BookmarkTree() {
 
           <DragOverlay dropAnimation={null}>
             {activeItem ? (
-              <div className="bg-background border border-border rounded shadow-md">
+              <div
+                className="bg-background border border-border rounded shadow-md"
+                style={{ marginLeft: `${activeItem.depth * TREE_INDENT_PX}px` }}
+              >
                 <TreeNodeContent item={activeItem} isOverlay />
               </div>
             ) : null}
