@@ -24,6 +24,13 @@ import { FolderTreeItem } from '@/components/FolderTreeItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import { ChevronDown, Folder, Check, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -67,11 +74,22 @@ export default function App() {
   const treeSearchRef = useRef<HTMLInputElement>(null);
   const treeScrollRef = useRef<HTMLDivElement>(null);
 
+  // Create folder dialog (popup tree view)
+  const folderInsertPosition = useSettings((s) => s.folderInsertPosition);
+  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
+  const [createFolderDialogTitle, setCreateFolderDialogTitle] = useState('新建文件夹');
+  const [createFolderPosition, setCreateFolderPosition] = useState<InsertPosition>('bottom');
+  const createFolderInputRef = useRef<HTMLInputElement>(null);
+
 
   // ─── Init: load current tab bookmark ───
   useEffect(() => {
     (async () => {
       try {
+        // Load persisted settings so folderInsertPosition is up to date
+        await useSettings.getState().load();
+
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url === 'about:blank') {
           closingRef.current = true;
@@ -309,18 +327,44 @@ export default function App() {
     setFolderTree(buildFolderTree(root));
   }, []);
 
-  const handleCreateFolder = useCallback(async (parentId: string) => {
+  const handleCreateFolder = useCallback((parentId: string) => {
+    setCreateFolderParentId(parentId);
+    setCreateFolderDialogTitle('新建文件夹');
+    setCreateFolderPosition(folderInsertPosition);
+    setCreateFolderDialogOpen(true);
+  }, [folderInsertPosition]);
+
+  const handleConfirmCreateFolder = useCallback(async () => {
+    if (!createFolderParentId || !createFolderDialogTitle.trim()) return;
+    setCreateFolderDialogOpen(false);
     try {
-      const result = await createBookmark(parentId, '新建文件夹');
-      // Expand parent and start editing new folder
-      setExpandedIds((prev) => new Set([...prev, parentId]));
+      const children = await chrome.bookmarks.getChildren(createFolderParentId);
+      const folders = children.filter((c) => !c.url);
+      const insertIndex = createFolderPosition === 'top' ? 0 : folders.length;
+      const result = await createBookmark(
+        createFolderParentId,
+        createFolderDialogTitle.trim(),
+        undefined,
+        insertIndex
+      );
+      setExpandedIds((prev) => new Set([...prev, createFolderParentId!]));
       await refreshTree();
-      setEditingId(result.id);
-      setEditingTitle('新建文件夹');
+      setSelectedId(result.id);
     } catch (err) {
       console.error('[Bookmark Pro Popup] create folder error:', err);
     }
-  }, [refreshTree]);
+  }, [createFolderParentId, createFolderDialogTitle, createFolderPosition, refreshTree]);
+
+  // Auto-focus the input when create folder dialog opens
+  useEffect(() => {
+    if (createFolderDialogOpen) {
+      const timer = setTimeout(() => {
+        createFolderInputRef.current?.focus();
+        createFolderInputRef.current?.select();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [createFolderDialogOpen]);
 
   const handleStartRename = useCallback((id: string, currentTitle: string) => {
     // Delay so ContextMenu fully unmounts before entering edit mode
@@ -502,6 +546,67 @@ export default function App() {
             完成
           </Button>
         </div>
+        {/* New folder dialog */}
+        <Dialog
+          open={createFolderDialogOpen}
+          onOpenChange={(open) => { if (!open) setCreateFolderDialogOpen(false); }}
+        >
+          <DialogContent className="max-w-[320px] p-4 gap-3">
+            <DialogHeader className="pb-0">
+              <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+            </DialogHeader>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">名称</label>
+              <Input
+                ref={createFolderInputRef}
+                value={createFolderDialogTitle}
+                onChange={(e) => setCreateFolderDialogTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmCreateFolder(); }}
+                placeholder="文件夹名称"
+                className="h-7 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">插入位置</label>
+              <div className="flex gap-1">
+                <Button
+                  variant={createFolderPosition === 'top' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCreateFolderPosition('top')}
+                  className="h-7 text-xs flex-1"
+                >
+                  顶部
+                </Button>
+                <Button
+                  variant={createFolderPosition === 'bottom' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCreateFolderPosition('bottom')}
+                  className="h-7 text-xs flex-1"
+                >
+                  底部
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateFolderDialogOpen(false)}
+                className="h-7 text-xs"
+              >
+                取消
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmCreateFolder}
+                disabled={!createFolderDialogTitle.trim()}
+                className="h-7 text-xs"
+              >
+                创建
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Toaster />
       </div>
     );
