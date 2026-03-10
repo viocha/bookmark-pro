@@ -35,6 +35,7 @@ export function MoveDialog() {
   // Search
   const [treeSearch, setTreeSearch] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const didAutoRevealSelectionRef = useRef(false);
 
   // --- New-folder dialog state ---
   const [nfOpen, setNfOpen] = useState(false);
@@ -86,22 +87,31 @@ export function MoveDialog() {
       setBookmarkPosition(settingsBookmarkPos);
       setEditingId(null);
       setTreeSearch('');
+      didAutoRevealSelectionRef.current = false;
     })();
   }, [moveDialogOpen, moveTargetNodes]);
 
-  // Auto-scroll selected item into view when dialog opens
   useEffect(() => {
-    if (!moveDialogOpen || !selectedId) return;
+    if (!moveDialogOpen) {
+      didAutoRevealSelectionRef.current = false;
+    }
+  }, [moveDialogOpen]);
+
+  // Reveal the initial selection once when the dialog opens, but do not recenter on every click.
+  useEffect(() => {
+    if (!moveDialogOpen || !selectedId || didAutoRevealSelectionRef.current) return;
     const timer = setTimeout(() => {
       const container = scrollAreaRef.current;
       if (!container) return;
-      const viewport = container.querySelector('[data-slot="scroll-area-viewport"]');
-      const target = container.querySelector(`[data-folder-id="${selectedId}"]`);
+      const viewport = container.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+      const target = container.querySelector<HTMLElement>(`[data-folder-id="${selectedId}"]`);
       if (viewport && target) {
         const viewportRect = viewport.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
-        const offset = targetRect.top - viewportRect.top - viewportRect.height / 2 + targetRect.height / 2;
-        viewport.scrollTop += offset;
+        if (targetRect.top < viewportRect.top || targetRect.bottom > viewportRect.bottom) {
+          target.scrollIntoView({ block: 'nearest' });
+        }
+        didAutoRevealSelectionRef.current = true;
       }
     }, 100);
     return () => clearTimeout(timer);
@@ -440,7 +450,11 @@ export function MoveDialog() {
               value={nfTitle}
               onChange={(e) => setNfTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleNewFolderCreate();
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleNewFolderCreate();
+                }
                 if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); setNfOpen(false); }
               }}
               placeholder="文件夹名称"

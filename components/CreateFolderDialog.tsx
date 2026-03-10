@@ -40,6 +40,8 @@ export function CreateFolderDialog() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       handleCreate();
     }
   };

@@ -1,22 +1,19 @@
-<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- 定义渐变，增加质感 -->
+<svg width="128" height="128" viewBox="6 7 116 102" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="starGradient" x1="64" y1="10" x2="64" y2="110" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FCD34D" /> <!-- Amber 300 -->
-      <stop offset="100%" stop-color="#F59E0B" /> <!-- Amber 500 -->
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#F59E0B" />
     </linearGradient>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.2" />
     </filter>
   </defs>
-
-  <!-- 主体星星 -->
-  <path 
-    d="M64 8.5L80.5 45.8H121.2L88.3 69.5L100.8 107.5L64 83.8L27.2 107.5L39.7 69.5L6.8 45.8H47.5L64 8.5Z" 
-    fill="url(#starGradient)" 
-    stroke="#D97706" 
-    stroke-width="2" 
+  <path
+    d="M64 8.5L80.5 45.8H121.2L88.3 69.5L100.8 107.5L64 83.8L27.2 107.5L39.7 69.5L6.8 45.8H47.5L64 8.5Z"
+    fill="url(#starGradient)"
+    stroke="#D97706"
+    stroke-width="2"
     stroke-linejoin="round"
     filter="url(#shadow)"
-  />  
+  />
 </svg>

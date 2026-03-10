@@ -81,6 +81,7 @@ export default function App() {
   const [createFolderDialogTitle, setCreateFolderDialogTitle] = useState('新建文件夹');
   const [createFolderPosition, setCreateFolderPosition] = useState<InsertPosition>('bottom');
   const createFolderInputRef = useRef<HTMLInputElement>(null);
+  const didAutoRevealTreeSelectionRef = useRef(false);
 
 
   // ─── Init: load current tab bookmark ───
@@ -221,14 +222,24 @@ export default function App() {
   // Enter key confirms and closes (skip when renaming a tree node)
   const handleDoneRef = useRef(handleDone);
   handleDoneRef.current = handleDone;
-  const handleTreeDoneRef = useRef<() => Promise<void>>();
+  const handleTreeDoneRef = useRef<(() => Promise<void>) | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
   const editingIdRef = useRef(editingId);
   editingIdRef.current = editingId;
+  const createFolderDialogOpenRef = useRef(createFolderDialogOpen);
+  createFolderDialogOpenRef.current = createFolderDialogOpen;
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || editingIdRef.current) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (
+        e.key !== 'Enter' ||
+        editingIdRef.current ||
+        createFolderDialogOpenRef.current ||
+        target?.closest('[data-slot="dialog-content"]')
+      ) {
+        return;
+      }
       e.preventDefault();
       if (viewRef.current === 'tree') handleTreeDoneRef.current?.();
       else handleDoneRef.current();
@@ -271,20 +282,25 @@ export default function App() {
   // Auto-focus search and auto-scroll selected item when tree view mounts
   useEffect(() => {
     if (view !== 'tree') return;
+    didAutoRevealTreeSelectionRef.current = false;
     // Focus the search input
     setTimeout(() => treeSearchRef.current?.focus(), 50);
-    // Scroll selected item into center view
-    if (!selectedId) return;
+  }, [view]);
+
+  useEffect(() => {
+    if (view !== 'tree' || !selectedId || didAutoRevealTreeSelectionRef.current) return;
     const timer = setTimeout(() => {
       const container = treeScrollRef.current;
       if (!container) return;
-      const viewport = container.querySelector('[data-slot="scroll-area-viewport"]');
-      const target = container.querySelector(`[data-folder-id="${selectedId}"]`);
+      const viewport = container.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+      const target = container.querySelector<HTMLElement>(`[data-folder-id="${selectedId}"]`);
       if (viewport && target) {
         const viewportRect = viewport.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
-        const offset = targetRect.top - viewportRect.top - viewportRect.height / 2 + targetRect.height / 2;
-        viewport.scrollTop += offset;
+        if (targetRect.top < viewportRect.top || targetRect.bottom > viewportRect.bottom) {
+          target.scrollIntoView({ block: 'nearest' });
+        }
+        didAutoRevealTreeSelectionRef.current = true;
       }
     }, 100);
     return () => clearTimeout(timer);
@@ -440,26 +456,7 @@ export default function App() {
 
   // ─── Render ───
   if (loading) {
-    return (
-      <div className="w-[360px] flex flex-col gap-2.5 p-3">
-        {/* Skeleton: matches compact view layout to prevent height jump */}
-        <div className="h-5 w-24 rounded bg-muted animate-pulse" />
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-10 rounded bg-muted animate-pulse shrink-0" />
-          <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-4 w-10 rounded bg-muted animate-pulse shrink-0" />
-          <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
-        </div>
-        <div className="flex items-center gap-2 pt-0.5">
-          <div className="h-7 w-12 rounded bg-muted animate-pulse" />
-          <div className="flex-1" />
-          <div className="h-7 w-14 rounded bg-muted animate-pulse" />
-          <div className="h-7 w-14 rounded bg-muted animate-pulse" />
-        </div>
-      </div>
-    );
+    return <div className="w-[360px] min-h-[188px] bg-background" />;
   }
 
   // ─── Tree view ───
@@ -561,7 +558,12 @@ export default function App() {
                 ref={createFolderInputRef}
                 value={createFolderDialogTitle}
                 onChange={(e) => setCreateFolderDialogTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmCreateFolder(); }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleConfirmCreateFolder();
+                }}
                 placeholder="文件夹名称"
                 className="h-7 text-xs"
               />

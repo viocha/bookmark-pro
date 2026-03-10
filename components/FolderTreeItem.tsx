@@ -94,6 +94,7 @@ export function FolderTreeItem({
       onClick={() => {
         if (isDisabled || isEditing) return;
         onSelect(node.id);
+        if (hasChildren) onToggle(node.id);
       }}
       onKeyDown={(e) => {
         if (e.key === 'F2' && isSelected && !isEditing && !isProtected) {
