@@ -2,6 +2,7 @@ import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -59,6 +60,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <DialogContent className="max-w-[320px] p-4 gap-3">
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm">设置</DialogTitle>
+          <DialogDescription className="sr-only">
+            设置新建文件夹和添加书签时默认使用的插入位置。
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <PositionToggle

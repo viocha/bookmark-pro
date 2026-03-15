@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -609,6 +610,9 @@ export default function App() {
           <DialogContent className="max-w-[320px] p-4 gap-3">
             <DialogHeader className="pb-0">
               <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+              <DialogDescription className="sr-only">
+                在当前选中的父文件夹下新建文件夹，并选择插入位置。
+              </DialogDescription>
             </DialogHeader>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">名称</label>

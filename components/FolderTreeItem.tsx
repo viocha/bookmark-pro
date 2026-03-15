@@ -59,6 +59,7 @@ export function FolderTreeItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const hasFocusedRef = useRef(false);
   const cancelingRef = useRef(false);
+  const suppressCloseAutoFocusRef = useRef(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -68,6 +69,7 @@ export function FolderTreeItem({
         inputRef.current?.focus();
         inputRef.current?.select();
         hasFocusedRef.current = true;
+        suppressCloseAutoFocusRef.current = false;
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -78,6 +80,11 @@ export function FolderTreeItem({
       onCommitRename();
     }
   }, [onCommitRename]);
+
+  const handleStartRenameFromMenu = useCallback(() => {
+    suppressCloseAutoFocusRef.current = true;
+    onStartRename(node.id, node.title);
+  }, [node.id, node.title, onStartRename]);
 
   const rowContent = (
     <div
@@ -160,30 +167,41 @@ export function FolderTreeItem({
 
   return (
     <>
-      <ContextMenu onOpenChange={(open) => onContextMenuChange(open ? node.id : null)}>
-        <ContextMenuTrigger asChild>
-          {rowContent}
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-40">
-          <ContextMenuItem onSelect={() => onCreateFolder(node.id)} className="text-xs h-7">
-            <FolderPlus className="size-3.5 mr-2" />
-            新建文件夹
-          </ContextMenuItem>
-          {!isProtected && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={() => onStartRename(node.id, node.title)} className="text-xs h-7">
-                <Pencil className="size-3.5 mr-2" />
-                重命名
-              </ContextMenuItem>
-              <ContextMenuItem onSelect={() => onDelete(node.id)} className="text-xs h-7 text-destructive">
-                <Trash2 className="size-3.5 mr-2" />
-                删除
-              </ContextMenuItem>
-            </>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
+      {isEditing ? (
+        rowContent
+      ) : (
+        <ContextMenu onOpenChange={(open) => onContextMenuChange(open ? node.id : null)}>
+          <ContextMenuTrigger asChild>
+            {rowContent}
+          </ContextMenuTrigger>
+          <ContextMenuContent
+            className="w-40"
+            onCloseAutoFocus={(e) => {
+              if (suppressCloseAutoFocusRef.current) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <ContextMenuItem onSelect={() => onCreateFolder(node.id)} className="text-xs h-7">
+              <FolderPlus className="size-3.5 mr-2" />
+              新建文件夹
+            </ContextMenuItem>
+            {!isProtected && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem onSelect={handleStartRenameFromMenu} className="text-xs h-7">
+                  <Pencil className="size-3.5 mr-2" />
+                  重命名
+                </ContextMenuItem>
+                <ContextMenuItem onSelect={() => onDelete(node.id)} className="text-xs h-7 text-destructive">
+                  <Trash2 className="size-3.5 mr-2" />
+                  删除
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
+      )}
       {expanded &&
         node.children.map((child) => (
           <FolderTreeItem

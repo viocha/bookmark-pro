@@ -4,6 +4,7 @@ import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -83,6 +84,9 @@ export function AddBookmarkDialog() {
       <DialogContent className="max-w-[320px] p-4 gap-3">
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm">已添加书签</DialogTitle>
+          <DialogDescription className="sr-only">
+            编辑刚添加的书签名称、网址和插入位置。
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           <div>

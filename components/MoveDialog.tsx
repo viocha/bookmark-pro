@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -320,6 +321,9 @@ export function MoveDialog() {
           <DialogTitle className="text-sm truncate min-w-0" title={dialogTitle}>
             {dialogTitle}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            选择目标文件夹，并决定移动后项目插入到顶部还是底部。
+          </DialogDescription>
         </DialogHeader>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -442,6 +446,9 @@ export function MoveDialog() {
         <DialogContent className="max-w-[300px] p-4 gap-3">
           <DialogHeader className="pb-0">
             <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+            <DialogDescription className="sr-only">
+              在当前移动目标下新建文件夹，并选择插入位置。
+            </DialogDescription>
           </DialogHeader>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">名称</label>

@@ -4,6 +4,7 @@ import { isFolder } from '@/lib/bookmark-api';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -47,6 +48,9 @@ export function EditDialog() {
           <DialogTitle className="text-sm">
             {folder ? '编辑文件夹' : '编辑书签'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {folder ? '修改当前文件夹名称。' : '修改当前书签的名称和网址。'}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <div>

@@ -4,6 +4,7 @@ import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -58,6 +59,9 @@ export function CreateFolderDialog() {
       <DialogContent className="max-w-[320px] p-4 gap-3">
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+          <DialogDescription className="sr-only">
+            输入文件夹名称，并选择新文件夹插入到当前位置的顶部或底部。
+          </DialogDescription>
         </DialogHeader>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">名称</label>

@@ -99,6 +99,7 @@ export function TreeNodeContent({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const renameFocusedRef = useRef(false);
   const renameCancelingRef = useRef(false);
+  const suppressCloseAutoFocusRef = useRef(false);
   const isRenaming = folder && renamingId === node.id && !isOverlay;
 
   useEffect(() => {
@@ -109,6 +110,7 @@ export function TreeNodeContent({
         renameInputRef.current?.focus();
         renameInputRef.current?.select();
         renameFocusedRef.current = true;
+        suppressCloseAutoFocusRef.current = false;
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -119,6 +121,11 @@ export function TreeNodeContent({
       onRenameCommit?.();
     }
   }, [onRenameCommit]);
+
+  const handleRenameFromMenu = useCallback(() => {
+    suppressCloseAutoFocusRef.current = true;
+    onRenameStart?.(node.id, node.title);
+  }, [node.id, node.title, onRenameStart]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -423,7 +430,14 @@ export function TreeNodeContent({
   }
 
   const contextMenuContent = folder ? (
-    <ContextMenuContent className="w-48">
+    <ContextMenuContent
+      className="w-48"
+      onCloseAutoFocus={(e) => {
+        if (suppressCloseAutoFocusRef.current) {
+          e.preventDefault();
+        }
+      }}
+    >
       <ContextMenuItem onSelect={handleAddCurrentPage} className="text-xs h-7">
         <BookmarkPlus className="size-3.5 mr-2" />
         添加当前页面
@@ -435,7 +449,7 @@ export function TreeNodeContent({
       {!isProtected && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onSelect={() => onRenameStart?.(node.id, node.title)} className="text-xs h-7">
+          <ContextMenuItem onSelect={handleRenameFromMenu} className="text-xs h-7">
             <Pencil className="size-3.5 mr-2" />
             重命名
           </ContextMenuItem>
@@ -537,6 +551,19 @@ export function TreeNodeContent({
     'data-node-id': node.id,
     'data-inside-highlight': insideHighlight || undefined,
   } as Record<string, any>;
+
+  if (isRenaming) {
+    return (
+      <div
+        ref={setNodeRef}
+        title={titleAttr}
+        className={triggerClassName}
+        {...triggerDataProps}
+      >
+        {innerContent}
+      </div>
+    );
+  }
 
   return (
     <ContextMenu>
