@@ -55,9 +55,12 @@ export default function App() {
   // Recent folders dropdown
   const [recentFolders, setRecentFolders] = useState<RecentFolder[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownOpenRef = useRef(dropdownOpen);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownListRef = useRef<HTMLDivElement>(null);
   const [dropdownSearch, setDropdownSearch] = useState('');
   const [searchedFolders, setSearchedFolders] = useState<RecentFolder[]>([]);
+  const [dropdownHighlightedId, setDropdownHighlightedId] = useState<string | null>(null);
   const dropdownSearchRef = useRef<HTMLInputElement>(null);
 
   // Tree view (expanded "更多")
@@ -156,16 +159,43 @@ export default function App() {
 
   // Close dropdown on outside click
   useEffect(() => {
+    dropdownOpenRef.current = dropdownOpen;
+  }, [dropdownOpen]);
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
         setDropdownSearch('');
         setSearchedFolders([]);
+        setDropdownHighlightedId(null);
       }
     };
     if (dropdownOpen) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [dropdownOpen]);
+
+  const dropdownOptions = dropdownSearch.trim() ? searchedFolders : recentFolders;
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const nextHighlightedId =
+      dropdownOptions.find((folder) => folder.id === folderId)?.id ??
+      dropdownOptions[0]?.id ??
+      null;
+    setDropdownHighlightedId((prev) => (
+      prev && dropdownOptions.some((folder) => folder.id === prev)
+        ? prev
+        : nextHighlightedId
+    ));
+  }, [dropdownOpen, dropdownOptions, folderId]);
+
+  useEffect(() => {
+    if (!dropdownOpen || !dropdownHighlightedId) return;
+    const list = dropdownListRef.current;
+    const target = list?.querySelector<HTMLElement>(`[data-folder-option-id="${dropdownHighlightedId}"]`);
+    target?.scrollIntoView({ block: 'nearest' });
+  }, [dropdownOpen, dropdownHighlightedId]);
 
   // ─── Handlers ───
   const handleSelectFolder = useCallback(async (folder: RecentFolder) => {
@@ -175,7 +205,28 @@ export default function App() {
     setDropdownOpen(false);
     setDropdownSearch('');
     setSearchedFolders([]);
+    setDropdownHighlightedId(null);
   }, []);
+
+  const handleDropdownNavigate = useCallback((direction: 1 | -1) => {
+    if (dropdownOptions.length === 0) return;
+    const currentIndex = dropdownHighlightedId
+      ? dropdownOptions.findIndex((folder) => folder.id === dropdownHighlightedId)
+      : -1;
+    const fallbackIndex = dropdownOptions.findIndex((folder) => folder.id === folderId);
+    const startIndex = currentIndex >= 0 ? currentIndex : Math.max(fallbackIndex, 0);
+    const nextIndex = (startIndex + direction + dropdownOptions.length) % dropdownOptions.length;
+    setDropdownHighlightedId(dropdownOptions[nextIndex]?.id ?? null);
+  }, [dropdownOptions, dropdownHighlightedId, folderId]);
+
+  const handleDropdownSelectHighlighted = useCallback(() => {
+    const targetFolder =
+      dropdownOptions.find((folder) => folder.id === dropdownHighlightedId) ??
+      dropdownOptions.find((folder) => folder.id === folderId);
+    if (targetFolder) {
+      void handleSelectFolder(targetFolder);
+    }
+  }, [dropdownOptions, dropdownHighlightedId, folderId, handleSelectFolder]);
 
   const saveChanges = useCallback(async () => {
     if (!bookmarkId) return;
@@ -236,6 +287,7 @@ export default function App() {
         e.key !== 'Enter' ||
         editingIdRef.current ||
         createFolderDialogOpenRef.current ||
+        (dropdownOpenRef.current && !!target && dropdownRef.current?.contains(target)) ||
         target?.closest('[data-slot="dialog-content"]')
       ) {
         return;
@@ -297,9 +349,15 @@ export default function App() {
       if (viewport && target) {
         const viewportRect = viewport.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
-        if (targetRect.top < viewportRect.top || targetRect.bottom > viewportRect.bottom) {
-          target.scrollIntoView({ block: 'nearest' });
-        }
+        const nextScrollTop =
+          viewport.scrollTop +
+          (targetRect.top - viewportRect.top) -
+          (viewport.clientHeight / 2) +
+          (targetRect.height / 2);
+        viewport.scrollTo({
+          top: Math.max(0, nextScrollTop),
+          behavior: 'auto',
+        });
         didAutoRevealTreeSelectionRef.current = true;
       }
     }, 100);
@@ -636,7 +694,38 @@ export default function App() {
         <div ref={dropdownRef} className="relative flex-1 min-w-0">
           <button
             type="button"
-            onClick={() => setDropdownOpen((v) => !v)}
+            onClick={() => {
+              setDropdownOpen((v) => {
+                const nextOpen = !v;
+                if (!nextOpen) {
+                  setDropdownSearch('');
+                  setSearchedFolders([]);
+                  setDropdownHighlightedId(null);
+                }
+                return nextOpen;
+              });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!dropdownOpen) {
+                  setDropdownOpen(true);
+                } else {
+                  handleDropdownNavigate(e.key === 'ArrowDown' ? 1 : -1);
+                }
+              }
+              if (e.key === 'Enter' && dropdownOpen) {
+                e.preventDefault();
+                handleDropdownSelectHighlighted();
+              }
+              if (e.key === 'Escape' && dropdownOpen) {
+                e.preventDefault();
+                setDropdownOpen(false);
+                setDropdownSearch('');
+                setSearchedFolders([]);
+                setDropdownHighlightedId(null);
+              }
+            }}
             className={cn(
               'flex items-center w-full h-8 px-2 text-xs border rounded-md bg-background',
               'hover:bg-accent/50 transition-colors',
@@ -675,13 +764,30 @@ export default function App() {
                       setSearchedFolders(mapped);
                     });
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      handleDropdownNavigate(e.key === 'ArrowDown' ? 1 : -1);
+                    }
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleDropdownSelectHighlighted();
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setDropdownOpen(false);
+                      setDropdownSearch('');
+                      setSearchedFolders([]);
+                      setDropdownHighlightedId(null);
+                    }
+                  }}
                   placeholder="搜索文件夹..."
                   className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
                   autoFocus
                 />
               </div>
               {/* Folder list */}
-              <div className="h-[360px] overflow-y-auto thin-scrollbar">
+              <div ref={dropdownListRef} className="h-[360px] overflow-y-auto thin-scrollbar">
                 {dropdownSearch.trim() ? (
                   searchedFolders.length === 0 ? (
                     <div className="px-2 py-3 text-xs text-muted-foreground text-center">未找到匹配的文件夹</div>
@@ -690,11 +796,14 @@ export default function App() {
                       <button
                         key={f.id}
                         type="button"
+                        data-folder-option-id={f.id}
                         title={[f.title, f.path].filter(Boolean).join('\n')}
                         className={cn(
                           'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
-                          f.id === folderId && 'bg-primary/10'
+                          f.id === folderId && 'bg-primary/10',
+                          f.id === dropdownHighlightedId && 'bg-accent/60'
                         )}
+                        onMouseEnter={() => setDropdownHighlightedId(f.id)}
                         onClick={() => handleSelectFolder(f)}
                       >
                         <Folder className="size-3 text-yellow-600 shrink-0 mt-0.5" />
@@ -713,11 +822,14 @@ export default function App() {
                     <button
                       key={f.id}
                       type="button"
+                      data-folder-option-id={f.id}
                       title={[f.title, f.path].filter(Boolean).join('\n')}
                       className={cn(
                         'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
-                        f.id === folderId && 'bg-primary/10'
+                        f.id === folderId && 'bg-primary/10',
+                        f.id === dropdownHighlightedId && 'bg-accent/60'
                       )}
+                      onMouseEnter={() => setDropdownHighlightedId(f.id)}
                       onClick={() => handleSelectFolder(f)}
                     >
                       <Folder className="size-3 text-yellow-600 shrink-0 mt-0.5" />

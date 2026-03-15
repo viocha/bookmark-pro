@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 
 function collectSelectedUrls(): string[] {
   const store = useBookmarkStore.getState();
@@ -146,73 +147,91 @@ export function Header() {
         </span>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={handleOpenTabs}
               disabled={selectedIds.size === 0}
-              className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
             >
               <ExternalLink className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">在新标签页打开</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={handleOpenWindow}
               disabled={selectedIds.size === 0}
-              className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
             >
               <AppWindow className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">在新窗口打开</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={handleOpenIncognito}
               disabled={selectedIds.size === 0}
-              className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
             >
               <EyeOff className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">在隐私窗口打开</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={openBatchMoveDialog}
               disabled={selectedIds.size === 0}
-              className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-30"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
             >
               <FolderInput className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">移动到</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={confirmBatchDelete}
               disabled={selectedIds.size === 0}
-              className="p-1 rounded hover:bg-accent text-destructive disabled:opacity-30"
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive hover:text-destructive"
             >
               <Trash2 className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">删除</TooltipContent>
         </Tooltip>
         <div className="w-px h-4 bg-border mx-0.5" />
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              type="button"
               onClick={exitMultiSelectMode}
-              className="p-1 rounded hover:bg-accent text-muted-foreground"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
             >
               <X className="size-3.5" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">退出多选</TooltipContent>
         </Tooltip>
@@ -235,25 +254,32 @@ export function Header() {
             placeholder="搜索书签和文件夹..."
             className="h-6 text-xs border-none shadow-none focus-visible:ring-0 px-1"
           />
-          <button
+          <Button
+            type="button"
             onClick={handleSearchToggle}
-            className="p-0.5 rounded hover:bg-accent text-muted-foreground"
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
           >
             <X className="size-3.5" />
-          </button>
+          </Button>
         </div>
       ) : (
         <>
           <Bookmark className="size-3.5 text-primary shrink-0" />
           <span className="text-xs font-medium flex-1 truncate">书签管理</span>
-          <button
+          <Button
+            type="button"
             onClick={enterMultiSelectMode}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
             title="多选模式"
           >
             <CheckSquare2 className="size-3.5" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             onClick={async () => {
               if (isSorting) return;
               setIsSorting(true);
@@ -264,25 +290,33 @@ export function Header() {
               }
             }}
             disabled={isSorting}
-            className="p-1 rounded hover:bg-accent text-muted-foreground disabled:opacity-50"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
             title={isSorting ? '排序中…' : '排序：文件夹置前'}
           >
             {isSorting ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowDownUp className="size-3.5" />}
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             onClick={handleSearchToggle}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
             title="搜索 (Ctrl+F)"
           >
             <Search className="size-3.5" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             onClick={() => setShowSettings(true)}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
             title="设置"
           >
             <Settings className="size-3.5" />
-          </button>
+          </Button>
         </>
       )}
     </div>

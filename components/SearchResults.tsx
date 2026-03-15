@@ -181,7 +181,7 @@ function SearchFolderItem({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+        className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
         title={titleAttr}
         onClick={onLocate}
       >
@@ -297,7 +297,7 @@ function SearchResultItem({
       <ContextMenuTrigger asChild>
         <a
           href={node.url}
-          className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+          className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
           title={titleAttr}
           onClick={handleClick}
         >

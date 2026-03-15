@@ -412,7 +412,7 @@ export function TreeNodeContent({
     return (
       <div
         className={cn(
-          'flex items-center h-7 pr-2 cursor-pointer select-none',
+          'flex items-center h-7 pr-2 cursor-pointer select-none rounded-md transition-colors',
           'hover:bg-accent/60 active:bg-accent',
           'text-xs gap-0.5 overflow-hidden'
         )}
@@ -527,7 +527,7 @@ export function TreeNodeContent({
 
   const isBookmark = !folder && !!node.url;
   const triggerClassName = cn(
-    'flex items-center h-7 pr-2 cursor-pointer select-none',
+    'flex items-center h-7 pr-2 cursor-pointer select-none rounded-md transition-colors',
     'text-xs gap-0.5 overflow-hidden',
     isSelected
       ? 'bg-primary/10 hover:bg-primary/15 data-[state=open]:bg-primary/10'
