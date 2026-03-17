@@ -60,7 +60,7 @@ interface BookmarkState {
   setSearchQuery: (query: string) => void;
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
-  locateNode: (nodeId: string) => Promise<void>;
+  locateNode: (nodeId: string, options?: { expandTarget?: boolean }) => Promise<void>;
 
   // CRUD
   addBookmark: (parentId: string, title: string, url: string, position?: 'top' | 'bottom') => Promise<chrome.bookmarks.BookmarkTreeNode>;
@@ -197,19 +197,24 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     set({ searchQuery: '', searchResults: null, isSearching: false });
   },
 
-  locateNode: async (nodeId: string) => {
-    // Expand all ancestor folders, then clear search to reveal in tree
+  locateNode: async (nodeId: string, options) => {
+    // Expand ancestor folders, and optionally expand the target folder itself.
     const { expandedIds } = get();
     const next = new Set(expandedIds);
     let currentId: string | undefined = nodeId;
+    let isTargetNode = true;
     // Walk up the tree to find all ancestor IDs
     while (currentId) {
       try {
-        const nodes = await chrome.bookmarks.get(currentId);
-        const node = nodes[0];
+        const nodes: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.get(currentId);
+        const node: chrome.bookmarks.BookmarkTreeNode | undefined = nodes[0];
+        if (isTargetNode && options?.expandTarget && node && !node.url) {
+          next.add(node.id);
+        }
         if (!node || !node.parentId) break;
         next.add(node.parentId);
         currentId = node.parentId;
+        isTargetNode = false;
       } catch {
         break;
       }

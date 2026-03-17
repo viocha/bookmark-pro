@@ -92,6 +92,7 @@ export function SearchResults() {
           <SearchFolderItem
             key={node.id}
             node={node}
+            onOpen={() => useBookmarkStore.getState().locateNode(node.id, { expandTarget: true })}
             onLocate={() => useBookmarkStore.getState().locateNode(node.id)}
             onEdit={() => openEditDialog(node)}
             onMove={() => openMoveDialog(node)}
@@ -116,6 +117,7 @@ export function SearchResults() {
 
 function SearchFolderItem({
   node,
+  onOpen,
   onLocate,
   onEdit,
   onMove,
@@ -123,6 +125,7 @@ function SearchFolderItem({
   onCreateFolder,
 }: {
   node: chrome.bookmarks.BookmarkTreeNode;
+  onOpen: () => void;
   onLocate: () => void;
   onEdit: () => void;
   onMove: () => void;
@@ -183,7 +186,7 @@ function SearchFolderItem({
       <ContextMenuTrigger
         className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
         title={titleAttr}
-        onClick={onLocate}
+        onClick={onOpen}
       >
         <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
           <Folder className="size-3.5 text-yellow-600" />

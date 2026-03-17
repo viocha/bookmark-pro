@@ -95,8 +95,8 @@ export async function getBookmarkPath(nodeId: string): Promise<string> {
   const parts: string[] = [];
   let currentId: string | undefined = nodeId;
   while (currentId) {
-    const nodes = await chrome.bookmarks.get(currentId);
-    const node = nodes[0];
+    const nodes: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.get(currentId);
+    const node: chrome.bookmarks.BookmarkTreeNode | undefined = nodes[0];
     if (!node || PROTECTED_IDS.has(node.id) && node.id === '0') break;
     if (node.title) parts.unshift(node.title);
     else if (PROTECTED_IDS.has(node.id)) {
