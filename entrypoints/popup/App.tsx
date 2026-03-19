@@ -102,7 +102,6 @@ export default function App() {
           return;
         }
 
-        setUrl(tab.url);
         const results = await chrome.bookmarks.search({ url: tab.url });
 
         let bm: chrome.bookmarks.BookmarkTreeNode;
@@ -132,6 +131,7 @@ export default function App() {
 
         setBookmarkId(bm.id);
         setTitle(bm.title);
+        setUrl(bm.url || tab.url);
         setFolderId(bm.parentId || '1');
 
         // Resolve folder name
@@ -236,7 +236,12 @@ export default function App() {
       const [existing] = await chrome.bookmarks.get(bookmarkId).catch(() => [null]);
       if (!existing) return;
 
-      await updateBookmark(bookmarkId, { title });
+      const changes: { title?: string; url?: string } = {};
+      if (title !== existing.title) changes.title = title;
+      if (url !== existing.url) changes.url = url;
+      if (Object.keys(changes).length > 0) {
+        await updateBookmark(bookmarkId, changes);
+      }
       if (folderId && folderId !== existing.parentId) {
         await moveBookmark(bookmarkId, { parentId: folderId });
       }
@@ -246,7 +251,7 @@ export default function App() {
     } catch (err) {
       console.error('[Bookmark Pro Popup] save error:', err);
     }
-  }, [bookmarkId, title, folderId]);
+  }, [bookmarkId, title, url, folderId]);
 
   const handleDone = useCallback(async () => {
     closingRef.current = true;
@@ -384,14 +389,14 @@ export default function App() {
     setFolderId(selectedId);
     closingRef.current = true;
     try {
-      await updateBookmark(bookmarkId, { title });
+      await updateBookmark(bookmarkId, { title, url });
       await moveBookmark(bookmarkId, { parentId: selectedId });
       await setLastFolderId(selectedId);
     } catch (err) {
       console.error('[Bookmark Pro Popup] tree-move error:', err);
     }
     window.close();
-  }, [selectedId, bookmarkId, title]);
+  }, [selectedId, bookmarkId, title, url]);
   handleTreeDoneRef.current = handleTreeDone;
 
   // ─── Folder tree inline editing (create / rename / delete) ───
@@ -527,13 +532,19 @@ export default function App() {
     return (
       <div className="w-[360px] flex flex-col">
         <div className="px-3 pt-3 pb-2">
-          <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'} — 选择文件夹</h2>
+          <h2 className="text-sm font-medium">{isNewBookmark ? '已添加书签' : '编辑书签'} — 更多</h2>
         </div>
-        <div className="px-3">
+        <div className="px-3 flex flex-col gap-2">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="书签名称"
+            className="h-8 text-xs"
+          />
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="网址"
             className="h-8 text-xs"
           />
         </div>
