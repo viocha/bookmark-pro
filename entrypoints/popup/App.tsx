@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import {
   getLastFolderId,
   getRecentBookmarkFolders,
@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
-import { ChevronDown, Folder, Check, Trash2, Search } from 'lucide-react';
+import { ChevronDown, Folder, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type View = 'compact' | 'tree';
@@ -69,6 +69,8 @@ export default function App() {
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [treeListReady, setTreeListReady] = useState(false);
+  const [autoRevealTargetId, setAutoRevealTargetId] = useState<string | null>(null);
 
   // Folder tree inline editing
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,7 +87,6 @@ export default function App() {
   const [createFolderDialogTitle, setCreateFolderDialogTitle] = useState('新建文件夹');
   const [createFolderPosition, setCreateFolderPosition] = useState<InsertPosition>('bottom');
   const createFolderInputRef = useRef<HTMLInputElement>(null);
-  const didAutoRevealTreeSelectionRef = useRef(false);
 
 
   // ─── Init: load current tab bookmark ───
@@ -229,8 +230,9 @@ export default function App() {
     }
   }, [dropdownOptions, dropdownHighlightedId, folderId, handleSelectFolder]);
 
-  const saveChanges = useCallback(async () => {
+  const persistBookmarkChanges = useCallback(async (nextFolderId?: string) => {
     if (!bookmarkId) return;
+    const targetFolderId = nextFolderId ?? folderId;
     try {
       // Verify bookmark still exists before saving
       const [existing] = await chrome.bookmarks.get(bookmarkId).catch(() => [null]);
@@ -242,22 +244,56 @@ export default function App() {
       if (Object.keys(changes).length > 0) {
         await updateBookmark(bookmarkId, changes);
       }
-      if (folderId && folderId !== existing.parentId) {
-        await moveBookmark(bookmarkId, { parentId: folderId });
+      if (targetFolderId && targetFolderId !== existing.parentId) {
+        await moveBookmark(bookmarkId, { parentId: targetFolderId });
       }
-      if (folderId) {
-        await setLastFolderId(folderId);
+      if (targetFolderId) {
+        await setLastFolderId(targetFolderId);
       }
     } catch (err) {
       console.error('[Bookmark Pro Popup] save error:', err);
     }
   }, [bookmarkId, title, url, folderId]);
 
+  const saveChanges = useCallback(async () => {
+    await persistBookmarkChanges();
+  }, [persistBookmarkChanges]);
+
   const handleDone = useCallback(async () => {
     closingRef.current = true;
     await saveChanges();
     window.close();
   }, [saveChanges]);
+
+  const handleLocateInSidepanel = useCallback(async (nextFolderId?: string) => {
+    if (!bookmarkId) return;
+
+    try {
+      const currentWindow = await chrome.windows.getCurrent();
+      if (typeof currentWindow.id !== 'number') {
+        throw new Error('Unable to resolve current window ID.');
+      }
+
+      closingRef.current = true;
+      await chrome.runtime.sendMessage({
+        type: 'PREPARE_LOCATE_BOOKMARK_FROM_POPUP',
+        windowId: currentWindow.id,
+      });
+      await persistBookmarkChanges(nextFolderId);
+      await chrome.runtime.sendMessage({
+        type: 'LOCATE_BOOKMARK_FROM_POPUP',
+        nodeId: bookmarkId,
+      });
+      window.close();
+    } catch (err) {
+      closingRef.current = false;
+      console.error('[Bookmark Pro Popup] locate in sidepanel error:', err);
+      toast('无法在侧栏中定位该书签', {
+        description: '请稍后重试。',
+        duration: 3000,
+      });
+    }
+  }, [bookmarkId, persistBookmarkChanges]);
 
   // Auto-save when popup loses focus / closes (matches browser native behavior)
   const saveRef = useRef(saveChanges);
@@ -318,7 +354,7 @@ export default function App() {
   }, [bookmarkId]);
 
   // ─── Tree view logic ───
-  const loadFolderTree = useCallback(async () => {
+  const loadFolderTree = useCallback(async (targetFolderId: string) => {
     const tree = await getBookmarkTree();
     const root = tree[0];
     if (!root) return;
@@ -326,49 +362,51 @@ export default function App() {
     setFolderTree(built);
 
     // Expand to current folder
-    const ancestors = getAncestorIds(built, folderId);
-    setExpandedIds(new Set([...ancestors, folderId]));
-    setSelectedId(folderId);
-  }, [folderId]);
+    const ancestors = getAncestorIds(built, targetFolderId);
+    setExpandedIds(new Set([...ancestors, targetFolderId]));
+    setSelectedId(targetFolderId);
+  }, []);
 
   const handleShowTree = useCallback(async () => {
-    await loadFolderTree();
     setTreeSearch('');
+    setTreeListReady(false);
+    setAutoRevealTargetId(folderId);
+    await loadFolderTree(folderId);
     setView('tree');
-  }, [loadFolderTree]);
+  }, [folderId, loadFolderTree]);
 
   // Auto-focus search and auto-scroll selected item when tree view mounts
   useEffect(() => {
     if (view !== 'tree') return;
-    didAutoRevealTreeSelectionRef.current = false;
-    // Focus the search input
-    setTimeout(() => treeSearchRef.current?.focus(), 50);
+    treeSearchRef.current?.focus();
   }, [view]);
 
+  useLayoutEffect(() => {
+    if (view !== 'tree' || !autoRevealTargetId) return;
+    const container = treeScrollRef.current;
+    if (!container) return;
+    const viewport = container.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+    const target = container.querySelector<HTMLElement>(`[data-folder-id="${autoRevealTargetId}"]`);
+    if (!viewport || !target) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const nextScrollTop =
+      viewport.scrollTop +
+      (targetRect.top - viewportRect.top) -
+      (viewport.clientHeight / 2) +
+      (targetRect.height / 2);
+
+    viewport.scrollTop = Math.max(0, nextScrollTop);
+    setAutoRevealTargetId(null);
+    setTreeListReady(true);
+  }, [view, autoRevealTargetId, folderTree, expandedIds, treeSearch]);
+
   useEffect(() => {
-    if (view !== 'tree' || !selectedId || didAutoRevealTreeSelectionRef.current) return;
-    const timer = setTimeout(() => {
-      const container = treeScrollRef.current;
-      if (!container) return;
-      const viewport = container.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
-      const target = container.querySelector<HTMLElement>(`[data-folder-id="${selectedId}"]`);
-      if (viewport && target) {
-        const viewportRect = viewport.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const nextScrollTop =
-          viewport.scrollTop +
-          (targetRect.top - viewportRect.top) -
-          (viewport.clientHeight / 2) +
-          (targetRect.height / 2);
-        viewport.scrollTo({
-          top: Math.max(0, nextScrollTop),
-          behavior: 'auto',
-        });
-        didAutoRevealTreeSelectionRef.current = true;
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [view, selectedId]);
+    if (view !== 'tree') return;
+    if (autoRevealTargetId) return;
+    setTreeListReady(true);
+  }, [view, autoRevealTargetId]);
 
   const handleToggle = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -385,18 +423,14 @@ export default function App() {
 
   const handleTreeDone = useCallback(async () => {
     if (!selectedId || !bookmarkId) return;
-    // Update folderId so auto-save won't revert the move
-    setFolderId(selectedId);
     closingRef.current = true;
     try {
-      await updateBookmark(bookmarkId, { title, url });
-      await moveBookmark(bookmarkId, { parentId: selectedId });
-      await setLastFolderId(selectedId);
+      await persistBookmarkChanges(selectedId);
     } catch (err) {
       console.error('[Bookmark Pro Popup] tree-move error:', err);
     }
     window.close();
-  }, [selectedId, bookmarkId, title, url]);
+  }, [selectedId, bookmarkId, persistBookmarkChanges]);
   handleTreeDoneRef.current = handleTreeDone;
 
   // ─── Folder tree inline editing (create / rename / delete) ───
@@ -560,56 +594,65 @@ export default function App() {
             />
           </div>
           <ScrollArea ref={treeScrollRef} className="h-[360px] border rounded-md min-w-0 overflow-hidden">
-            {displayTree.map((node) => (
-              <FolderTreeItem
-                key={node.id}
-                node={node}
-                depth={0}
-                selectedId={selectedId}
-                expandedIds={displayExpandedIds}
-                disabledIds={new Set()}
-                editingId={editingId}
-                editingTitle={editingTitle}
-                contextMenuId={contextMenuId}
-                onSelect={handleTreeSelect}
-                onToggle={handleToggle}
-                onCreateFolder={handleCreateFolder}
-                onStartRename={handleStartRename}
-                onCommitRename={handleCommitRename}
-                onCancelRename={handleCancelRename}
-                onEditingTitleChange={setEditingTitle}
-                onDelete={handleDeleteFolder}
-                onContextMenuChange={setContextMenuId}
-              />
-            ))}
+            <div className={cn('min-h-full', !treeListReady && 'opacity-0 pointer-events-none')}>
+              {displayTree.map((node) => (
+                <FolderTreeItem
+                  key={node.id}
+                  node={node}
+                  depth={0}
+                  selectedId={selectedId}
+                  expandedIds={displayExpandedIds}
+                  disabledIds={new Set()}
+                  editingId={editingId}
+                  editingTitle={editingTitle}
+                  contextMenuId={contextMenuId}
+                  onSelect={handleTreeSelect}
+                  onToggle={handleToggle}
+                  onCreateFolder={handleCreateFolder}
+                  onStartRename={handleStartRename}
+                  onCommitRename={handleCommitRename}
+                  onCancelRename={handleCancelRename}
+                  onEditingTitleChange={setEditingTitle}
+                  onDelete={handleDeleteFolder}
+                  onContextMenuChange={setContextMenuId}
+                />
+              ))}
+            </div>
           </ScrollArea>
         </div>
         <div className="flex items-center gap-2 px-3 py-2">
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs"
+            className="h-7 text-xs cursor-pointer"
             onClick={() => setView('compact')}
           >
             返回
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs cursor-pointer"
+            onClick={() => void handleLocateInSidepanel(selectedId ?? folderId)}
+            disabled={!bookmarkId}
+          >
+            侧栏定位
           </Button>
           <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs text-destructive hover:text-destructive"
+            className="h-7 text-xs text-destructive hover:text-destructive cursor-pointer"
             onClick={handleRemove}
           >
-            <Trash2 className="size-3.5 mr-1" />
             移除
           </Button>
           <Button
             size="sm"
-            className="h-7 text-xs"
+            className="h-7 text-xs cursor-pointer"
             onClick={handleTreeDone}
             disabled={!selectedId}
           >
-            <Check className="size-3.5 mr-1" />
             完成
           </Button>
         </div>
@@ -742,7 +785,7 @@ export default function App() {
               }
             }}
             className={cn(
-              'flex items-center w-full h-8 px-2 text-xs border rounded-md bg-background',
+              'flex items-center w-full h-8 px-2 text-xs border rounded-md bg-background cursor-pointer',
               'hover:bg-accent/50 transition-colors',
               dropdownOpen && 'ring-2 ring-ring ring-offset-1'
             )}
@@ -814,7 +857,7 @@ export default function App() {
                         data-folder-option-id={f.id}
                         title={[f.title, f.path].filter(Boolean).join('\n')}
                         className={cn(
-                          'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
+                          'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5 cursor-pointer',
                           f.id === folderId && 'bg-primary/10',
                           f.id === dropdownHighlightedId && 'bg-accent/60'
                         )}
@@ -840,7 +883,7 @@ export default function App() {
                       data-folder-option-id={f.id}
                       title={[f.title, f.path].filter(Boolean).join('\n')}
                       className={cn(
-                        'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5',
+                        'flex items-start w-full px-2 py-1.5 text-xs hover:bg-accent/60 transition-colors gap-1.5 cursor-pointer',
                         f.id === folderId && 'bg-primary/10',
                         f.id === dropdownHighlightedId && 'bg-accent/60'
                       )}
@@ -867,27 +910,34 @@ export default function App() {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 text-xs cursor-pointer"
           onClick={handleShowTree}
         >
           更多
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs cursor-pointer"
+          onClick={() => void handleLocateInSidepanel()}
+          disabled={!bookmarkId}
+        >
+          侧栏定位
         </Button>
         <div className="flex-1" />
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs text-destructive hover:text-destructive"
+          className="h-7 text-xs text-destructive hover:text-destructive cursor-pointer"
           onClick={handleRemove}
         >
-          <Trash2 className="size-3.5 mr-1" />
           移除
         </Button>
         <Button
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 text-xs cursor-pointer"
           onClick={handleDone}
         >
-          <Check className="size-3.5 mr-1" />
           完成
         </Button>
       </div>

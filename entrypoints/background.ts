@@ -29,6 +29,25 @@ export default defineBackground(() => {
     updateDebugMenu();
   }
 
+  function ensureSidePanelOpen(windowId: number) {
+    if (openSidePanels.has(windowId)) return;
+    openSidePanels.add(windowId);
+    persistState();
+    chrome.sidePanel.open({ windowId });
+  }
+
+  function dispatchLocateBookmark(nodeId: string) {
+    chrome.storage.session
+      .set({ locateRequest: { nodeId, ts: Date.now() } })
+      .catch(() => {});
+
+    chrome.runtime
+      .sendMessage({ type: 'LOCATE_BOOKMARK', nodeId })
+      .catch(() => {
+        // Normal when sidepanel is not yet open
+      });
+  }
+
   // 更新调试菜单标题（在状态变更后调用）
   // MV3 Service Worker 不支持 contextMenus.onShown，只能主动推送。
   // 不依赖 getCurrent()——SW 无用户交互上下文时该 API 会失败。
@@ -76,11 +95,31 @@ export default defineBackground(() => {
       persistState();
       chrome.sidePanel.close({ windowId });
     } else {
-      openSidePanels.add(windowId);
-      persistState();
-      chrome.sidePanel.open({ windowId });
+      ensureSidePanelOpen(windowId);
     }
   }
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (
+      message?.type === 'PREPARE_LOCATE_BOOKMARK_FROM_POPUP' &&
+      typeof message.windowId === 'number'
+    ) {
+      ensureSidePanelOpen(message.windowId);
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (
+      message?.type === 'LOCATE_BOOKMARK_FROM_POPUP' &&
+      typeof message.nodeId === 'string'
+    ) {
+      dispatchLocateBookmark(message.nodeId);
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    return undefined;
+  });
 
   // ── Context menu ──
   // onInstalled 在首次安装/更新时触发，此时 stateRestorePromise 可能已先 resolve（纯内存操作极快），
@@ -156,24 +195,12 @@ export default defineBackground(() => {
 
     // ── Open side panel synchronously (must happen before any await / .then) ──
     const senderWindowId = sender.tab?.windowId;
-    if (senderWindowId != null && !openSidePanels.has(senderWindowId)) {
-      openSidePanels.add(senderWindowId);
-      persistState();
+    if (senderWindowId != null) {
       // Synchronous call — preserves user-gesture context propagated through sendMessage.
-      chrome.sidePanel.open({ windowId: senderWindowId });
+      ensureSidePanelOpen(senderWindowId);
     }
 
-    // Persist locate request so sidepanel picks it up on mount (handles race with panel not yet rendered)
-    chrome.storage.session
-      .set({ locateRequest: { nodeId, ts: Date.now() } })
-      .catch(() => {});
-
-    // Also forward in real-time if the sidepanel is already connected
-    chrome.runtime
-      .sendMessage({ type: 'LOCATE_BOOKMARK', nodeId })
-      .catch(() => {
-        // Normal when sidepanel is not yet open
-      });
+    dispatchLocateBookmark(nodeId);
 
     sendResponse({ ok: true });
     return true;
