@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
-import { ChevronDown, Folder, Search } from 'lucide-react';
+import { Check, ChevronDown, Folder, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type View = 'compact' | 'tree';

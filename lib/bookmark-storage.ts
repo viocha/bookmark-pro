@@ -10,10 +10,18 @@ export interface RecentFolder {
   path: string; // e.g. "书签栏 / 工作"
 }
 
+type LastFolderStorage = {
+  [LAST_FOLDER_KEY]?: string;
+};
+
+type RecentFoldersStorage = {
+  [RECENT_FOLDERS_KEY]?: RecentFolder[];
+};
+
 /** Get last-used folder ID (default '1' = 书签栏) */
 export async function getLastFolderId(): Promise<string> {
-  const result = await chrome.storage.local.get(LAST_FOLDER_KEY);
-  return result[LAST_FOLDER_KEY] || '1';
+  const result = await chrome.storage.local.get<LastFolderStorage>(LAST_FOLDER_KEY);
+  return result[LAST_FOLDER_KEY] ?? '1';
 }
 
 /** Save last-used folder ID */
@@ -23,8 +31,8 @@ export async function setLastFolderId(folderId: string): Promise<void> {
 
 /** Get recent folders list */
 export async function getRecentFolders(): Promise<RecentFolder[]> {
-  const result = await chrome.storage.local.get(RECENT_FOLDERS_KEY);
-  return result[RECENT_FOLDERS_KEY] || [];
+  const result = await chrome.storage.local.get<RecentFoldersStorage>(RECENT_FOLDERS_KEY);
+  return result[RECENT_FOLDERS_KEY] ?? [];
 }
 
 /** Add a folder to recent list (dedup, move to top, trim) */
@@ -46,7 +54,8 @@ export async function buildFolderPath(folderId: string): Promise<string> {
   let currentId: string | undefined = folderId;
   while (currentId && currentId !== '0') {
     try {
-      const [node] = await chrome.bookmarks.get(currentId);
+      const nodes: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.get(currentId);
+      const node = nodes[0];
       if (!node) break;
       parts.unshift(node.title || ROOT_NAMES[node.id] || '');
       currentId = node.parentId;

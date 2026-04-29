@@ -10,6 +10,11 @@ import { AddBookmarkDialog } from '@/components/AddBookmarkDialog';
 import { MoveDialog } from '@/components/MoveDialog';
 import { Toaster } from '@/components/ui/sonner';
 
+interface PendingLocateRequest {
+  nodeId: string;
+  ts: number;
+}
+
 export default function App() {
   const { loadTree, searchResults } = useBookmarkStore();
 
@@ -29,8 +34,8 @@ export default function App() {
     // Check session storage for a locate request written by the background script
     // (handles the case where the sidepanel was not yet open when the request arrived)
     chrome.storage.session
-      .get('locateRequest')
-      .then((data: Record<string, { nodeId: string; ts: number } | undefined>) => {
+      .get<{ locateRequest?: PendingLocateRequest }>('locateRequest')
+      .then((data) => {
         const req = data.locateRequest;
         if (req?.nodeId && Date.now() - req.ts < 30_000) {
           chrome.storage.session.remove('locateRequest').catch(() => {});

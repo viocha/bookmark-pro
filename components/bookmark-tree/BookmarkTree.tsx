@@ -135,12 +135,12 @@ export function BookmarkTree() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renamingTitle, setRenamingTitle] = useState('');
   const scrollRestoredRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Auto-expand/collapse: when dragging over a folder's "inside" zone for 2s,
   // toggle its expanded state so user can navigate into / collapse children.
   const hoverFolderRef = useRef<string | null>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clearHoverTimer = useCallback(() => {
     clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = undefined;
