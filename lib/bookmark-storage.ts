@@ -2,7 +2,7 @@
 
 const LAST_FOLDER_KEY = 'bookmark-pro-last-folder';
 const RECENT_FOLDERS_KEY = 'bookmark-pro-recent-folders';
-const MAX_RECENT_FOLDERS = 8;
+export const MAX_FOLDER_OPTIONS = 50;
 
 export interface RecentFolder {
   id: string;
@@ -39,7 +39,7 @@ export async function getRecentFolders(): Promise<RecentFolder[]> {
 export async function addRecentFolder(folder: RecentFolder): Promise<void> {
   const existing = await getRecentFolders();
   const filtered = existing.filter((f) => f.id !== folder.id);
-  const updated = [folder, ...filtered].slice(0, MAX_RECENT_FOLDERS);
+  const updated = [folder, ...filtered].slice(0, MAX_FOLDER_OPTIONS);
   await chrome.storage.local.set({ [RECENT_FOLDERS_KEY]: updated });
 }
 
@@ -130,7 +130,7 @@ export async function getRecentBookmarkFolders(): Promise<RecentFolder[]> {
     candidates.sort((a, b) => b.time - a.time);
 
     for (const { id } of candidates) {
-      if (folders.length >= MAX_RECENT_FOLDERS) break;
+      if (folders.length >= MAX_FOLDER_OPTIONS) break;
       if (seen.has(id)) continue;
       seen.add(id);
 

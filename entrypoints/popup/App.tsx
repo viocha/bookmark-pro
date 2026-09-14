@@ -5,6 +5,7 @@ import {
   setLastFolderId,
   buildFolderPath,
   folderExists,
+  MAX_FOLDER_OPTIONS,
   type RecentFolder,
 } from '@/lib/bookmark-storage';
 import {
@@ -813,7 +814,7 @@ export default function App() {
                     searchBookmarks(q.trim()).then(async (results) => {
                       const folders = results.filter((n) => !n.url);
                       const mapped = await Promise.all(
-                        folders.slice(0, 30).map(async (n) => ({
+                        folders.slice(0, MAX_FOLDER_OPTIONS).map(async (n) => ({
                           id: n.id,
                           title: n.title || '(无标题)',
                           path: n.parentId ? await buildFolderPath(n.parentId) : '',
