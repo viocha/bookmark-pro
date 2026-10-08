@@ -11,6 +11,7 @@ import {
 import {
   getBookmarkTree,
   createBookmark,
+  getBookmarkInsertIndex,
   removeBookmarkTree,
   updateBookmark,
   moveBookmark,
@@ -94,7 +95,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        // Load persisted settings so folderInsertPosition is up to date
+        // 创建书签前读取持久化的插入位置设置。
         await useSettings.getState().load();
 
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -116,11 +117,11 @@ export default function App() {
             if (await folderExists(lastId)) targetFolderId = lastId;
           } catch { /* fallback to 书签栏 */ }
 
-          bm = await chrome.bookmarks.create({
-            parentId: targetFolderId,
-            title: tab.title || '',
-            url: tab.url,
-          });
+          const index = await getBookmarkInsertIndex(
+            targetFolderId,
+            useSettings.getState().bookmarkInsertPosition
+          );
+          bm = await createBookmark(targetFolderId, tab.title || '', tab.url, index);
           setIsNewBookmark(true);
 
           // Save as last used folder
@@ -246,7 +247,10 @@ export default function App() {
         await updateBookmark(bookmarkId, changes);
       }
       if (targetFolderId && targetFolderId !== existing.parentId) {
-        await moveBookmark(bookmarkId, { parentId: targetFolderId });
+        const index = isNewBookmark
+          ? await getBookmarkInsertIndex(targetFolderId, useSettings.getState().bookmarkInsertPosition)
+          : undefined;
+        await moveBookmark(bookmarkId, { parentId: targetFolderId, index });
       }
       if (targetFolderId) {
         await setLastFolderId(targetFolderId);
@@ -254,7 +258,7 @@ export default function App() {
     } catch (err) {
       console.error('[Bookmark Pro Popup] save error:', err);
     }
-  }, [bookmarkId, title, url, folderId]);
+  }, [bookmarkId, title, url, folderId, isNewBookmark]);
 
   const saveChanges = useCallback(async () => {
     await persistBookmarkChanges();

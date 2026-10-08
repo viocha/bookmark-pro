@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import {
   getBookmarkTree,
   createBookmark,
+  getBookmarkInsertIndex,
   updateBookmark,
   removeBookmark,
   removeBookmarkTree,
@@ -229,16 +230,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     if (globalExisting.length > 0) {
       return globalExisting[0];
     }
-    // Sort existing children: folders before bookmarks
-    await normalizeFolderChildren(parentId);
-    const children = await chrome.bookmarks.getChildren(parentId);
-    const folders = children.filter(c => !c.url);
-    // Determine insert index
-    let index: number | undefined;
-    if (position === 'top') {
-      index = folders.length; // right after folders
-    }
-    // else: undefined = append to end (bottom)
+    const index = await getBookmarkInsertIndex(parentId, position ?? 'bottom');
     const node = await createBookmark(parentId, title, url, index);
     await get().loadTree();
     return node;

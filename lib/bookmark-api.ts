@@ -13,6 +13,17 @@ export async function createBookmark(
   return chrome.bookmarks.create({ parentId, title, url, index });
 }
 
+/** 按插入位置计算书签索引，保持子文件夹在书签前面。 */
+export async function getBookmarkInsertIndex(
+  parentId: string,
+  position: 'top' | 'bottom'
+): Promise<number | undefined> {
+  await normalizeFolderChildren(parentId);
+  if (position === 'bottom') return undefined;
+  const children = await chrome.bookmarks.getChildren(parentId);
+  return children.filter((child) => !child.url).length;
+}
+
 export async function updateBookmark(
   id: string,
   changes: { title?: string; url?: string }
