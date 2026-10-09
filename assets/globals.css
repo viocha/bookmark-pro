@@ -1,10 +1,12 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -13,27 +15,26 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.965 0 0);
+  --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.965 0 0);
-  --muted-foreground: oklch(0.46 0 0);
-  --accent: oklch(0.965 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.965 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
@@ -42,11 +43,11 @@
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
+  --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -54,27 +55,28 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @theme inline {
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: var(--font-sans);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -90,7 +92,6 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -111,90 +112,56 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-  --animate-collapsible-down: collapsible-down 0.2s ease-out;
-  --animate-collapsible-up: collapsible-up 0.2s ease-out;
 }
-
-@keyframes accordion-down {
-  from { height: 0; }
-  to { height: var(--radix-accordion-content-height); }
-}
-@keyframes accordion-up {
-  from { height: var(--radix-accordion-content-height); }
-  to { height: 0; }
-}
-@keyframes collapsible-down {
-  from { height: 0; }
-  to { height: var(--radix-collapsible-content-height); }
-}
-@keyframes collapsible-up {
-  from { height: var(--radix-collapsible-content-height); }
-  to { height: 0; }
-}
-
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-foreground;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
     overflow: hidden;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-/* Clickable elements: show pointer cursor */
-[data-slot="context-menu-item"],
-[data-slot="context-menu-checkbox-item"],
-[data-slot="context-menu-radio-item"],
-[data-slot="context-menu-sub-trigger"],
-[data-slot="dialog-close"],
-[data-slot="alert-dialog-cancel"],
-[data-slot="alert-dialog-action"],
-button {
-  cursor: pointer;
-}
-
-/* Toast: limit description to 1 line, keep action button visible */
-[data-sonner-toast] [data-content] {
-  overflow: hidden;
-  min-width: 0;
-}
-[data-sonner-toast] [data-description] {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-}
-[data-sonner-toast] [data-button] {
-  flex-shrink: 0;
-}
-
-/* Drag-and-drop: highlight folder when dropping inside */
+/* 拖拽进入文件夹时显示目标提示。 */
 [data-inside-highlight],
 [data-inside-highlight]:hover {
-  background-color: color-mix(in oklch, var(--primary) 10%, transparent) !important;
+  background-color: color-mix(
+    in oklch,
+    var(--primary) 10%,
+    transparent
+  ) !important;
   outline: 1px dashed color-mix(in oklch, var(--primary) 50%, transparent);
   border-radius: 3px;
 }
 
-/* Thin scrollbar for popup dropdown lists */
-.thin-scrollbar::-webkit-scrollbar {
-  width: 6px;
+/* 扩展页的浏览器默认字体不属于 CSS 层，需要显式应用主题字体。 */
+body {
+  font-family: var(--font-sans);
 }
-.thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
-  border-radius: 3px;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+
+/* 统一操作控件光标，覆盖组件默认值，保留文本输入和拖动光标。 */
+:is(
+  button,
+  a[href],
+  summary,
+  label[for],
+  [role='button'],
+  [role='checkbox'],
+  [role='radio'],
+  [role='switch'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='menuitemcheckbox'],
+  [role='menuitemradio'],
+  [role='option'],
+  input[type='checkbox'],
+  input[type='radio']
+):not(.cursor-grab, .cursor-grabbing) {
+  cursor: pointer;
 }

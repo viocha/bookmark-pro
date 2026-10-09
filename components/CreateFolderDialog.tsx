@@ -4,16 +4,24 @@ import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { InsertPositionField } from '@/components/InsertPositionField';
 
 export function CreateFolderDialog() {
-  const { createFolderDialogOpen, createFolderParentId, closeCreateFolderDialog, addFolder } =
-    useBookmarkStore();
+  const {
+    createFolderDialogOpen,
+    createFolderParentId,
+    closeCreateFolderDialog,
+    finishCloseCreateFolderDialog,
+    addFolder,
+  } = useBookmarkStore();
   const folderInsertPosition = useSettings((s) => s.folderInsertPosition);
   const [title, setTitle] = useState('');
   const [position, setPosition] = useState<InsertPosition>('bottom');
@@ -24,18 +32,12 @@ export function CreateFolderDialog() {
     if (createFolderDialogOpen) {
       setPosition(folderInsertPosition);
       setTitle('新建文件夹');
-      const timer = setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 0);
-      return () => clearTimeout(timer);
     }
   }, [createFolderDialogOpen, folderInsertPosition]);
 
   const handleCreate = async () => {
     if (!createFolderParentId || !title.trim()) return;
     await addFolder(createFolderParentId, title.trim(), position);
-    setTitle('');
     closeCreateFolderDialog();
   };
 
@@ -48,61 +50,56 @@ export function CreateFolderDialog() {
   };
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setTitle('');
-      closeCreateFolderDialog();
-    }
+    if (!open) closeCreateFolderDialog();
   };
 
   return (
-    <Dialog open={createFolderDialogOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[320px] p-4 gap-3">
-        <DialogHeader className="pb-0">
-          <DialogTitle className="text-sm">新建文件夹</DialogTitle>
+    <Dialog
+      open={createFolderDialogOpen}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={(open) => {
+        if (open || useBookmarkStore.getState().createFolderDialogOpen) return;
+        finishCloseCreateFolderDialog();
+        setTitle('');
+      }}
+    >
+      <DialogContent
+        initialFocus={() => {
+          inputRef.current?.select();
+          return inputRef.current;
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>新建文件夹</DialogTitle>
           <DialogDescription className="sr-only">
-            输入文件夹名称，并选择新文件夹插入到当前位置的顶部或底部。
+            输入名称并选择插入位置
           </DialogDescription>
         </DialogHeader>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">名称</label>
-          <Input
-            ref={inputRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="文件夹名称"
-            className="h-7 text-xs"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">插入位置</label>
-          <div className="flex gap-1">
-            <Button
-              variant={position === 'top' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setPosition('top')}
-              className="h-7 text-xs flex-1"
-            >
-              顶部
-            </Button>
-            <Button
-              variant={position === 'bottom' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setPosition('bottom')}
-              className="h-7 text-xs flex-1"
-            >
-              底部
-            </Button>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 pt-0">
-          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="h-7 text-xs">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="create-folder-title">名称</FieldLabel>
+            <Input
+              id="create-folder-title"
+              ref={inputRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </Field>
+          <InsertPositionField value={position} onChange={setPosition} />
+        </FieldGroup>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenChange(false)}
+          >
             取消
           </Button>
-          <Button size="sm" onClick={handleCreate} disabled={!title.trim()} className="h-7 text-xs">
+          <Button size="sm" onClick={handleCreate} disabled={!title.trim()}>
             创建
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

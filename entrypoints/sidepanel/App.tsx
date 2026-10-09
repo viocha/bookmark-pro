@@ -8,7 +8,7 @@ import { EditDialog } from '@/components/EditDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { AddBookmarkDialog } from '@/components/AddBookmarkDialog';
 import { MoveDialog } from '@/components/MoveDialog';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui/toast';
 
 interface PendingLocateRequest {
   nodeId: string;

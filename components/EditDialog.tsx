@@ -4,15 +4,23 @@ import { isFolder } from '@/lib/bookmark-api';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 
 export function EditDialog() {
-  const { editingNode, editDialogOpen, closeEditDialog, editNode } = useBookmarkStore();
+  const {
+    editingNode,
+    editDialogOpen,
+    closeEditDialog,
+    finishCloseEditDialog,
+    editNode,
+  } = useBookmarkStore();
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
 
@@ -42,47 +50,51 @@ export function EditDialog() {
   const folder = editingNode ? isFolder(editingNode) : false;
 
   return (
-    <Dialog open={editDialogOpen} onOpenChange={(open) => !open && closeEditDialog()}>
-      <DialogContent className="max-w-[320px] p-4 gap-3">
-        <DialogHeader className="pb-0">
-          <DialogTitle className="text-sm">
-            {folder ? '编辑文件夹' : '编辑书签'}
-          </DialogTitle>
+    <Dialog
+      open={editDialogOpen}
+      onOpenChange={(open) => !open && closeEditDialog()}
+      onOpenChangeComplete={(open) => {
+        if (!open) finishCloseEditDialog();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{folder ? '编辑文件夹' : '编辑书签'}</DialogTitle>
           <DialogDescription className="sr-only">
             {folder ? '修改当前文件夹名称。' : '修改当前书签的名称和网址。'}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">名称</label>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="edit-title">名称</FieldLabel>
             <Input
+              id="edit-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="h-7 text-xs"
               autoFocus
             />
-          </div>
+          </Field>
           {!folder && (
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">网址</label>
+            <Field>
+              <FieldLabel htmlFor="edit-url">网址</FieldLabel>
               <Input
+                id="edit-url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="h-7 text-xs"
               />
-            </div>
+            </Field>
           )}
-        </div>
-        <div className="flex justify-end gap-2 pt-0">
-          <Button variant="outline" size="sm" onClick={closeEditDialog} className="h-7 text-xs">
+        </FieldGroup>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={closeEditDialog}>
             取消
           </Button>
-          <Button size="sm" onClick={handleSave} className="h-7 text-xs">
+          <Button size="sm" onClick={handleSave}>
             保存
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

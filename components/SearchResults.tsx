@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import { getBookmarkPath, isProtectedNode, getAllUrls } from '@/lib/bookmark-api';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import { toast } from '@/components/ui/toast';
+import {
+  getBookmarkPath,
+  isProtectedNode,
+  getAllUrls,
+} from '@/lib/bookmark-api';
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
@@ -29,21 +36,32 @@ import { useSettings } from '@/hooks/useSettings';
 
 export function SearchResults() {
   const store = useBookmarkStore();
-  const { searchResults, isSearching, searchQuery, openEditDialog, deleteNode, undoDeleteBookmark, openMoveDialog, openCreateFolderDialog } = store;
+  const {
+    searchResults,
+    isSearching,
+    searchQuery,
+    openEditDialog,
+    deleteNode,
+    undoDeleteBookmark,
+    openMoveDialog,
+    openCreateFolderDialog,
+  } = store;
 
   if (isSearching) {
     return (
-      <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-        搜索中...
+      <div className="flex h-full items-center justify-center">
+        <Spinner aria-label="搜索中" />
       </div>
     );
   }
 
   if (!searchResults || searchResults.length === 0) {
     return (
-      <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-        {searchQuery ? '没有找到匹配的结果' : '请输入搜索词'}
-      </div>
+      <Empty className="h-full">
+        <EmptyDescription>
+          {searchQuery ? '没有找到匹配的结果' : '请输入搜索词'}
+        </EmptyDescription>
+      </Empty>
     );
   }
 
@@ -51,34 +69,49 @@ export function SearchResults() {
   const bookmarks = searchResults.filter((n) => n.url);
 
   const handleDeleteFolder = (node: chrome.bookmarks.BookmarkTreeNode) => {
-    const deepClone = (n: chrome.bookmarks.BookmarkTreeNode): chrome.bookmarks.BookmarkTreeNode => ({
+    const deepClone = (
+      n: chrome.bookmarks.BookmarkTreeNode
+    ): chrome.bookmarks.BookmarkTreeNode => ({
       ...n,
       children: n.children?.map(deepClone),
     });
     const saved = deepClone(node);
     deleteNode(node);
-    toast('已删除文件夹', {
+    const undoToastId = toast.add({
+      title: '已删除文件夹',
       description: saved.title || '(无标题)',
-      action: {
-        label: '撤销',
-        onClick: () => useBookmarkStore.getState().undoDeleteFolder(
-          saved.title, saved.parentId ?? '1', saved.children ?? [], saved.index
-        ),
+      actionProps: {
+        children: '撤销',
+        onClick: () => {
+          toast.close(undoToastId);
+          return useBookmarkStore
+            .getState()
+            .undoDeleteFolder(
+              saved.title,
+              saved.parentId ?? '1',
+              saved.children ?? [],
+              saved.index
+            );
+        },
       },
-      duration: 5000,
+      timeout: 5000,
     });
   };
 
   const handleDeleteBookmark = (node: chrome.bookmarks.BookmarkTreeNode) => {
     const saved = { ...node };
     deleteNode(node);
-    toast('已删除书签', {
+    const undoToastId = toast.add({
+      title: '已删除书签',
       description: saved.title || '(无标题)',
-      action: {
-        label: '撤销',
-        onClick: () => undoDeleteBookmark(saved),
+      actionProps: {
+        children: '撤销',
+        onClick: () => {
+          toast.close(undoToastId);
+          return undoDeleteBookmark(saved);
+        },
       },
-      duration: 5000,
+      timeout: 5000,
     });
   };
 
@@ -86,13 +119,18 @@ export function SearchResults() {
     <ScrollArea className="h-full">
       <div className="py-0.5">
         <div className="px-2 py-1 text-[11px] text-muted-foreground">
-          找到 {folders.length > 0 ? `${folders.length} 个文件夹、` : ''}{bookmarks.length} 个书签
+          找到 {folders.length > 0 ? `${folders.length} 个文件夹、` : ''}
+          {bookmarks.length} 个书签
         </div>
         {folders.map((node) => (
           <SearchFolderItem
             key={node.id}
             node={node}
-            onOpen={() => useBookmarkStore.getState().locateNode(node.id, { expandTarget: true })}
+            onOpen={() =>
+              useBookmarkStore
+                .getState()
+                .locateNode(node.id, { expandTarget: true })
+            }
             onLocate={() => useBookmarkStore.getState().locateNode(node.id)}
             onEdit={() => openEditDialog(node)}
             onMove={() => openMoveDialog(node)}
@@ -143,24 +181,41 @@ function SearchFolderItem({
     }
   }, [node.parentId]);
 
-  const titleAttr = [node.title, path ? `📁 ${path}` : ''].filter(Boolean).join('\n');
+  const titleAttr = [node.title, path ? `📁 ${path}` : '']
+    .filter(Boolean)
+    .join('\n');
 
   const handleAddCurrentPage = async () => {
     try {
       let tab: chrome.tabs.Tab | undefined;
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       tab = tabs[0];
       if (!tab?.url || !tab?.title) {
-        const fallbackTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        const fallbackTabs = await chrome.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        });
         tab = fallbackTabs[0];
       }
       if (tab?.url && tab?.title) {
         const existing = await chrome.bookmarks.search({ url: tab.url });
         if (existing.length > 0) {
-          toast('书签已存在', { description: existing[0].title || '(无标题)', duration: 3000 });
+          toast.add({
+            title: '书签已存在',
+            description: existing[0].title || '(无标题)',
+            timeout: 3000,
+          });
           return;
         }
-        const newNode = await addBookmark(node.id, tab.title, tab.url, bookmarkInsertPosition);
+        const newNode = await addBookmark(
+          node.id,
+          tab.title,
+          tab.url,
+          bookmarkInsertPosition
+        );
         openAddBookmarkDialog(newNode, tab.title, tab.url);
       }
     } catch (err) {
@@ -193,52 +248,58 @@ function SearchFolderItem({
         </span>
         <div className="flex-1 min-w-0">
           <div className="truncate">{node.title || '(无标题)'}</div>
-          {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
+          {path && (
+            <div className="truncate text-[10px] text-muted-foreground">
+              {path}
+            </div>
+          )}
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onSelect={onLocate} className="text-xs h-7">
-          <MapPin className="size-3.5 mr-2" />
-          显示所在位置
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={handleAddCurrentPage} className="text-xs h-7">
-          <BookmarkPlus className="size-3.5 mr-2" />
-          添加当前页面
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={onCreateFolder} className="text-xs h-7">
-          <FolderPlus className="size-3.5 mr-2" />
-          新建文件夹
-        </ContextMenuItem>
-        {!isProtected && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={onEdit} className="text-xs h-7">
-              <Pencil className="size-3.5 mr-2" />
-              编辑
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={onMove} className="text-xs h-7">
-              <FolderInput className="size-3.5 mr-2" />
-              移动到
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={onDelete} className="text-xs h-7 text-destructive">
-              <Trash2 className="size-3.5 mr-2" />
-              删除
-            </ContextMenuItem>
-          </>
-        )}
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={handleOpenAll} className="text-xs h-7">
-          <FolderOpenDot className="size-3.5 mr-2" />
-          打开全部书签
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={handleOpenAllNewWindow} className="text-xs h-7">
-          <AppWindow className="size-3.5 mr-2" />
-          在新窗口打开全部
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={handleOpenAllIncognito} className="text-xs h-7">
-          <EyeOff className="size-3.5 mr-2" />
-          在隐私窗口打开全部
-        </ContextMenuItem>
+        <ContextMenuGroup>
+          <ContextMenuItem onClick={onLocate}>
+            <MapPin />
+            显示所在位置
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleAddCurrentPage}>
+            <BookmarkPlus />
+            添加当前页面
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onCreateFolder}>
+            <FolderPlus />
+            新建文件夹
+          </ContextMenuItem>
+          {!isProtected && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={onEdit}>
+                <Pencil />
+                编辑
+              </ContextMenuItem>
+              <ContextMenuItem onClick={onMove}>
+                <FolderInput />
+                移动到
+              </ContextMenuItem>
+              <ContextMenuItem onClick={onDelete} variant="destructive">
+                <Trash2 />
+                删除
+              </ContextMenuItem>
+            </>
+          )}
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleOpenAll}>
+            <FolderOpenDot />
+            打开全部书签
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleOpenAllNewWindow}>
+            <AppWindow />
+            在新窗口打开全部
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleOpenAllIncognito}>
+            <EyeOff />
+            在隐私窗口打开全部
+          </ContextMenuItem>
+        </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -289,76 +350,88 @@ function SearchResultItem({
   const handleCopyLink = () => {
     if (node.url) {
       navigator.clipboard.writeText(node.url);
-      toast('已复制链接', { description: node.url, duration: 2000 });
+      toast.add({ title: '已复制链接', description: node.url, timeout: 2000 });
     }
   };
 
-  const titleAttr = [node.title, node.url, path ? `📁 ${path}` : ''].filter(Boolean).join('\n');
+  const titleAttr = [node.title, node.url, path ? `📁 ${path}` : '']
+    .filter(Boolean)
+    .join('\n');
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <a
-          href={node.url}
-          className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
-          title={titleAttr}
-          onClick={handleClick}
-        >
-          <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
-            {node.url ? (
-              <img
-                src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
-                className="size-3.5"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-            ) : null}
-            <FileText className="size-3.5 text-muted-foreground hidden" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="truncate">{node.title || '(无标题)'}</div>
-            {path && <div className="truncate text-[10px] text-muted-foreground">{path}</div>}
-          </div>
-        </a>
-      </ContextMenuTrigger>
+      <ContextMenuTrigger
+        render={
+          <a
+            href={node.url}
+            className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
+            title={titleAttr}
+            onClick={handleClick}
+          >
+            <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
+              {node.url ? (
+                <img
+                  src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
+                  className="size-3.5"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (
+                      e.target as HTMLImageElement
+                    ).nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <FileText className="size-3.5 text-muted-foreground hidden" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="truncate">{node.title || '(无标题)'}</div>
+              {path && (
+                <div className="truncate text-[10px] text-muted-foreground">
+                  {path}
+                </div>
+              )}
+            </div>
+          </a>
+        }
+      />
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onSelect={onLocate} className="text-xs h-7">
-          <MapPin className="size-3.5 mr-2" />
-          显示所在位置
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={onEdit} className="text-xs h-7">
-          <Pencil className="size-3.5 mr-2" />
-          编辑
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={onMove} className="text-xs h-7">
-          <FolderInput className="size-3.5 mr-2" />
-          移动到
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={onDelete} className="text-xs h-7 text-destructive">
-          <Trash2 className="size-3.5 mr-2" />
-          删除
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={handleOpenNewTab} className="text-xs h-7">
-          <ExternalLink className="size-3.5 mr-2" />
-          在新标签页打开
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={handleOpenNewWindow} className="text-xs h-7">
-          <AppWindow className="size-3.5 mr-2" />
-          在新窗口打开
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={handleOpenIncognito} className="text-xs h-7">
-          <EyeOff className="size-3.5 mr-2" />
-          在隐私窗口打开
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={handleCopyLink} className="text-xs h-7">
-          <Copy className="size-3.5 mr-2" />
-          复制链接
-        </ContextMenuItem>
+        <ContextMenuGroup>
+          <ContextMenuItem onClick={onLocate}>
+            <MapPin />
+            显示所在位置
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={onEdit}>
+            <Pencil />
+            编辑
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onMove}>
+            <FolderInput />
+            移动到
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onDelete} variant="destructive">
+            <Trash2 />
+            删除
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleOpenNewTab}>
+            <ExternalLink />
+            在新标签页打开
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleOpenNewWindow}>
+            <AppWindow />
+            在新窗口打开
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleOpenIncognito}>
+            <EyeOff />
+            在隐私窗口打开
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleCopyLink}>
+            <Copy />
+            复制链接
+          </ContextMenuItem>
+        </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>
   );

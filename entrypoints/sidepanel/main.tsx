@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from 'next-themes';
 import App from './App';
 import '@/assets/globals.css';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 // 建立与 background 的长连接，用于可靠监听侧栏关闭（原生 x 按钮）
 chrome.windows.getCurrent().then((win) => {
@@ -14,7 +15,9 @@ chrome.windows.getCurrent().then((win) => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <App />
+      <TooltipProvider delay={500}>
+        <App />
+      </TooltipProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

@@ -1,15 +1,23 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { isProtectedNode } from '@/lib/bookmark-api';
 import type { FolderNode } from '@/lib/folder-tree';
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Input } from '@/components/ui/input';
-import { ChevronRight, FolderOpen, Folder, FolderPlus, Pencil, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  FolderOpen,
+  Folder,
+  FolderPlus,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function FolderTreeItem({
@@ -55,23 +63,25 @@ export function FolderTreeItem({
   const hasChildren = node.children.length > 0;
   const isEditing = editingId === node.id;
   const isProtected = isProtectedNode(node.id);
-  const isContextActive = contextMenuId === node.id;
+  const [isContextActive, setContextActive] = useState(false);
+  const contextOpenRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasFocusedRef = useRef(false);
   const cancelingRef = useRef(false);
   const suppressCloseAutoFocusRef = useRef(false);
+  const pendingRenameRef = useRef(false);
 
   useEffect(() => {
     if (isEditing) {
       hasFocusedRef.current = false;
       cancelingRef.current = false;
-      const timer = setTimeout(() => {
+      const frame = requestAnimationFrame(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
         hasFocusedRef.current = true;
         suppressCloseAutoFocusRef.current = false;
-      }, 50);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, [isEditing]);
 
@@ -83,8 +93,8 @@ export function FolderTreeItem({
 
   const handleStartRenameFromMenu = useCallback(() => {
     suppressCloseAutoFocusRef.current = true;
-    onStartRename(node.id, node.title);
-  }, [node.id, node.title, onStartRename]);
+    pendingRenameRef.current = true;
+  }, []);
 
   const rowContent = (
     <div
@@ -95,6 +105,7 @@ export function FolderTreeItem({
         'hover:bg-accent/60',
         isSelected && 'bg-primary/15 hover:bg-primary/20',
         isContextActive && !isSelected && 'bg-accent/60',
+        isContextActive && isSelected && 'bg-primary/20',
         isDisabled && 'opacity-40 cursor-not-allowed'
       )}
       style={{ paddingLeft: `${depth * 14 + 4}px` }}
@@ -158,7 +169,9 @@ export function FolderTreeItem({
         <>
           <span className="truncate min-w-0 ml-0.5">{node.title}</span>
           {node.childCount > 0 && (
-            <span className="text-[10px] text-muted-foreground ml-auto shrink-0 pr-1">{node.childCount}</span>
+            <span className="ml-auto shrink-0 text-muted-foreground">
+              {node.childCount}
+            </span>
           )}
         </>
       )}
@@ -170,35 +183,52 @@ export function FolderTreeItem({
       {isEditing ? (
         rowContent
       ) : (
-        <ContextMenu onOpenChange={(open) => onContextMenuChange(open ? node.id : null)}>
-          <ContextMenuTrigger asChild>
-            {rowContent}
-          </ContextMenuTrigger>
+        <ContextMenu
+          onOpenChange={(open) => {
+            contextOpenRef.current = open;
+            if (open) {
+              setContextActive(true);
+              onContextMenuChange(node.id);
+            }
+          }}
+          onOpenChangeComplete={(open) => {
+            if (!open && !contextOpenRef.current) {
+              setContextActive(false);
+              if (contextMenuId === node.id) onContextMenuChange(null);
+            }
+            if (!open && pendingRenameRef.current) {
+              pendingRenameRef.current = false;
+              onStartRename(node.id, node.title);
+            }
+          }}
+        >
+          <ContextMenuTrigger render={rowContent} />
           <ContextMenuContent
             className="w-40"
-            onCloseAutoFocus={(e) => {
-              if (suppressCloseAutoFocusRef.current) {
-                e.preventDefault();
-              }
-            }}
+            finalFocus={() => !suppressCloseAutoFocusRef.current}
           >
-            <ContextMenuItem onSelect={() => onCreateFolder(node.id)} className="text-xs h-7">
-              <FolderPlus className="size-3.5 mr-2" />
-              新建文件夹
-            </ContextMenuItem>
-            {!isProtected && (
-              <>
-                <ContextMenuSeparator />
-                <ContextMenuItem onSelect={handleStartRenameFromMenu} className="text-xs h-7">
-                  <Pencil className="size-3.5 mr-2" />
-                  重命名
-                </ContextMenuItem>
-                <ContextMenuItem onSelect={() => onDelete(node.id)} className="text-xs h-7 text-destructive">
-                  <Trash2 className="size-3.5 mr-2" />
-                  删除
-                </ContextMenuItem>
-              </>
-            )}
+            <ContextMenuGroup>
+              <ContextMenuItem onClick={() => onCreateFolder(node.id)}>
+                <FolderPlus />
+                新建文件夹
+              </ContextMenuItem>
+              {!isProtected && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={handleStartRenameFromMenu}>
+                    <Pencil />
+                    重命名
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => onDelete(node.id)}
+                    variant="destructive"
+                  >
+                    <Trash2 />
+                    删除
+                  </ContextMenuItem>
+                </>
+              )}
+            </ContextMenuGroup>
           </ContextMenuContent>
         </ContextMenu>
       )}

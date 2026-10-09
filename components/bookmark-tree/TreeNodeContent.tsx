@@ -1,13 +1,18 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { FlattenedNode } from '@/lib/tree-utils';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings } from '@/hooks/useSettings';
-import { isProtectedNode, getAllUrls, isFolder as isFolderNode } from '@/lib/bookmark-api';
-import { toast } from 'sonner';
+import {
+  isProtectedNode,
+  getAllUrls,
+  isFolder as isFolderNode,
+} from '@/lib/bookmark-api';
+import { toast } from '@/components/ui/toast';
 
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
@@ -29,12 +34,11 @@ import {
   FolderInput,
   EyeOff,
   Copy,
-  Square,
   CheckSquare,
-  CheckSquare2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TreeNodeContentProps {
   item: FlattenedNode;
@@ -100,19 +104,22 @@ export function TreeNodeContent({
   const renameFocusedRef = useRef(false);
   const renameCancelingRef = useRef(false);
   const suppressCloseAutoFocusRef = useRef(false);
+  const pendingRenameRef = useRef(false);
+  const [contextActive, setContextActive] = useState(false);
+  const contextOpenRef = useRef(false);
   const isRenaming = folder && renamingId === node.id && !isOverlay;
 
   useEffect(() => {
     if (isRenaming) {
       renameFocusedRef.current = false;
       renameCancelingRef.current = false;
-      const timer = setTimeout(() => {
+      const frame = requestAnimationFrame(() => {
         renameInputRef.current?.focus();
         renameInputRef.current?.select();
         renameFocusedRef.current = true;
         suppressCloseAutoFocusRef.current = false;
-      }, 50);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, [isRenaming]);
 
@@ -124,8 +131,8 @@ export function TreeNodeContent({
 
   const handleRenameFromMenu = useCallback(() => {
     suppressCloseAutoFocusRef.current = true;
-    onRenameStart?.(node.id, node.title);
-  }, [node.id, node.title, onRenameStart]);
+    pendingRenameRef.current = true;
+  }, []);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -172,7 +179,7 @@ export function TreeNodeContent({
   const handleCopyLink = () => {
     if (node.url) {
       navigator.clipboard.writeText(node.url);
-      toast('已复制链接', { description: node.url, duration: 2000 });
+      toast.add({ title: '已复制链接', description: node.url, timeout: 2000 });
     }
   };
 
@@ -180,33 +187,48 @@ export function TreeNodeContent({
     if (isProtected) return;
     if (folder) {
       // Save full snapshot for undo (deep clone children)
-      const deepClone = (n: chrome.bookmarks.BookmarkTreeNode): chrome.bookmarks.BookmarkTreeNode => ({
+      const deepClone = (
+        n: chrome.bookmarks.BookmarkTreeNode
+      ): chrome.bookmarks.BookmarkTreeNode => ({
         ...n,
         children: n.children?.map(deepClone),
       });
       const savedNode = deepClone(node);
       deleteNode(node);
-      toast('已删除文件夹', {
+      const undoToastId = toast.add({
+        title: '已删除文件夹',
         description: savedNode.title || '(无标题)',
-        action: {
-          label: '撤销',
-          onClick: () => useBookmarkStore.getState().undoDeleteFolder(
-            savedNode.title, savedNode.parentId ?? '1', savedNode.children ?? [], savedNode.index
-          ),
+        actionProps: {
+          children: '撤销',
+          onClick: () => {
+            toast.close(undoToastId);
+            return useBookmarkStore
+              .getState()
+              .undoDeleteFolder(
+                savedNode.title,
+                savedNode.parentId ?? '1',
+                savedNode.children ?? [],
+                savedNode.index
+              );
+          },
         },
-        duration: 5000,
+        timeout: 5000,
       });
     } else {
       // Bookmark: delete immediately, show undo toast
       const savedNode = { ...node };
       deleteNode(node);
-      toast('已删除书签', {
+      const undoToastId = toast.add({
+        title: '已删除书签',
         description: savedNode.title || '(无标题)',
-        action: {
-          label: '撤销',
-          onClick: () => undoDeleteBookmark(savedNode),
+        actionProps: {
+          children: '撤销',
+          onClick: () => {
+            toast.close(undoToastId);
+            return undoDeleteBookmark(savedNode);
+          },
         },
-        duration: 5000,
+        timeout: 5000,
       });
     }
   };
@@ -219,20 +241,35 @@ export function TreeNodeContent({
   const handleAddCurrentPage = async () => {
     try {
       let tab: chrome.tabs.Tab | undefined;
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       tab = tabs[0];
       if (!tab?.url || !tab?.title) {
-        const fallbackTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        const fallbackTabs = await chrome.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        });
         tab = fallbackTabs[0];
       }
       if (tab?.url && tab?.title) {
         // Check if URL already exists globally
         const existing = await chrome.bookmarks.search({ url: tab.url });
         if (existing.length > 0) {
-          toast('书签已存在', { description: existing[0].title || '(无标题)', duration: 3000 });
+          toast.add({
+            title: '书签已存在',
+            description: existing[0].title || '(无标题)',
+            timeout: 3000,
+          });
           return;
         }
-        const newNode = await addBookmark(node.id, tab.title, tab.url, bookmarkInsertPosition);
+        const newNode = await addBookmark(
+          node.id,
+          tab.title,
+          tab.url,
+          bookmarkInsertPosition
+        );
         openAddBookmarkDialog(newNode, tab.title, tab.url);
       }
     } catch (err) {
@@ -285,7 +322,7 @@ export function TreeNodeContent({
   const handleBatchOpenTabs = () => {
     const urls = collectSelectedUrls();
     urls.forEach((u) => chrome.tabs.create({ url: u }));
-    toast(`已打开 ${urls.length} 个标签页`, { duration: 2000 });
+    toast.add({ title: `已打开 ${urls.length} 个标签页`, timeout: 2000 });
   };
 
   const handleBatchOpenWindow = () => {
@@ -307,39 +344,47 @@ export function TreeNodeContent({
 
   const batchContextMenuContent = (
     <ContextMenuContent className="w-48">
-      <ContextMenuItem onSelect={handleBatchOpenTabs} className="text-xs h-7">
-        <ExternalLink className="size-3.5 mr-2" />
-        在新标签页打开 ({selectedIds.size})
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleBatchOpenWindow} className="text-xs h-7">
-        <AppWindow className="size-3.5 mr-2" />
-        在新窗口打开 ({selectedIds.size})
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleBatchOpenIncognito} className="text-xs h-7">
-        <EyeOff className="size-3.5 mr-2" />
-        在隐私窗口打开 ({selectedIds.size})
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={openBatchMoveDialog} className="text-xs h-7">
-        <FolderInput className="size-3.5 mr-2" />
-        移动到 ({selectedIds.size})
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={confirmBatchDelete} className="text-xs h-7 text-destructive">
-        <Trash2 className="size-3.5 mr-2" />
-        删除 ({selectedIds.size})
-      </ContextMenuItem>
+      <ContextMenuGroup>
+        <ContextMenuItem onClick={handleBatchOpenTabs}>
+          <ExternalLink />
+          在新标签页打开 ({selectedIds.size})
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleBatchOpenWindow}>
+          <AppWindow />
+          在新窗口打开 ({selectedIds.size})
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleBatchOpenIncognito}>
+          <EyeOff />
+          在隐私窗口打开 ({selectedIds.size})
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={openBatchMoveDialog}>
+          <FolderInput />
+          移动到 ({selectedIds.size})
+        </ContextMenuItem>
+        <ContextMenuItem onClick={confirmBatchDelete} variant="destructive">
+          <Trash2 />
+          删除 ({selectedIds.size})
+        </ContextMenuItem>
+      </ContextMenuGroup>
     </ContextMenuContent>
   );
 
   const innerContent = (
     <>
-      {!isOverlay && <span style={{ width: `${indent}px` }} className="shrink-0" />}
+      {!isOverlay && (
+        <span style={{ width: `${indent}px` }} className="shrink-0" />
+      )}
       <span
         className="flex items-center justify-center size-4 shrink-0 ml-0.5"
-        onClick={folder ? (e: React.MouseEvent) => {
-          e.stopPropagation();
-          toggleExpand(node.id);
-        } : undefined}
+        onClick={
+          folder
+            ? (e: React.MouseEvent) => {
+                e.stopPropagation();
+                toggleExpand(node.id);
+              }
+            : undefined
+        }
       >
         {folder ? (
           <ChevronRight
@@ -353,16 +398,19 @@ export function TreeNodeContent({
       <span className="flex items-center justify-center size-4 shrink-0">
         {multiSelectMode && !isProtected ? (
           <span className="relative flex items-center justify-center size-4">
-            {isSelected ? (
-              <CheckSquare2 className="size-3.5 text-primary" />
-            ) : (
-              <Square className="size-3.5 text-muted-foreground" />
-            )}
+            <Checkbox
+              checked={isSelected}
+              aria-label={`选择 ${node.title || '(无标题)'}`}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={() => toggleSelect(node.id)}
+            />
             {!folder && node.url && (
               <img
                 src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
                 className="size-2.5 absolute -bottom-0.5 -right-0.5 rounded-sm"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
               />
             )}
           </span>
@@ -395,8 +443,16 @@ export function TreeNodeContent({
           value={renamingTitle}
           onChange={(e) => onRenameTitleChange?.(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.stopPropagation(); onRenameCommit?.(); }
-            if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); renameCancelingRef.current = true; onRenameCancel?.(); }
+            if (e.key === 'Enter') {
+              e.stopPropagation();
+              onRenameCommit?.();
+            }
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              e.preventDefault();
+              renameCancelingRef.current = true;
+              onRenameCancel?.();
+            }
           }}
           onBlur={handleRenameBlur}
           className="h-5 text-xs px-1 py-0 ml-0.5 flex-1 min-w-0"
@@ -404,9 +460,11 @@ export function TreeNodeContent({
         />
       ) : (
         <>
-          <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
+          <span className="truncate min-w-0 ml-0.5">
+            {node.title || '(无标题)'}
+          </span>
           {folder && item.childCount > 0 && (
-            <span className="text-[10px] text-muted-foreground ml-auto shrink-0 pr-1">
+            <span className="ml-auto shrink-0 text-muted-foreground">
               {item.childCount}
             </span>
           )}
@@ -432,110 +490,110 @@ export function TreeNodeContent({
   const contextMenuContent = folder ? (
     <ContextMenuContent
       className="w-48"
-      onCloseAutoFocus={(e) => {
-        if (suppressCloseAutoFocusRef.current) {
-          e.preventDefault();
-        }
-      }}
+      finalFocus={() => !suppressCloseAutoFocusRef.current}
     >
-      <ContextMenuItem onSelect={handleAddCurrentPage} className="text-xs h-7">
-        <BookmarkPlus className="size-3.5 mr-2" />
-        添加当前页面
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleCreateFolder} className="text-xs h-7">
-        <FolderPlus className="size-3.5 mr-2" />
-        新建文件夹
-      </ContextMenuItem>
-      {!isProtected && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleRenameFromMenu} className="text-xs h-7">
-            <Pencil className="size-3.5 mr-2" />
-            重命名
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={() => openMoveDialog(node)} className="text-xs h-7">
-            <FolderInput className="size-3.5 mr-2" />
-            移动到
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={handleDelete} className="text-xs h-7 text-destructive">
-            <Trash2 className="size-3.5 mr-2" />
-            删除
-          </ContextMenuItem>
-        </>
-      )}
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={handleOpenAll} className="text-xs h-7">
-        <FolderOpenDot className="size-3.5 mr-2" />
-        打开全部书签
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleOpenAllNewWindow} className="text-xs h-7">
-        <AppWindow className="size-3.5 mr-2" />
-        在新窗口打开全部
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleOpenAllIncognito} className="text-xs h-7">
-        <EyeOff className="size-3.5 mr-2" />
-        在隐私窗口打开全部
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={() => expandAllUnder(node)} className="text-xs h-7">
-        <ChevronsUpDown className="size-3.5 mr-2" />
-        递归展开
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={() => collapseAllUnder(node)} className="text-xs h-7">
-        <ChevronsDownUp className="size-3.5 mr-2" />
-        递归折叠
-      </ContextMenuItem>
-      {!multiSelectMode && !isProtected && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleEnterMultiSelect} className="text-xs h-7">
-            <CheckSquare className="size-3.5 mr-2" />
-            多选
-          </ContextMenuItem>
-        </>
-      )}
+      <ContextMenuGroup>
+        <ContextMenuItem onClick={handleAddCurrentPage}>
+          <BookmarkPlus />
+          添加当前页面
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleCreateFolder}>
+          <FolderPlus />
+          新建文件夹
+        </ContextMenuItem>
+        {!isProtected && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={handleRenameFromMenu}>
+              <Pencil />
+              重命名
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => openMoveDialog(node)}>
+              <FolderInput />
+              移动到
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleDelete} variant="destructive">
+              <Trash2 />
+              删除
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleOpenAll}>
+          <FolderOpenDot />
+          打开全部书签
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleOpenAllNewWindow}>
+          <AppWindow />
+          在新窗口打开全部
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleOpenAllIncognito}>
+          <EyeOff />
+          在隐私窗口打开全部
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => expandAllUnder(node)}>
+          <ChevronsUpDown />
+          递归展开
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => collapseAllUnder(node)}>
+          <ChevronsDownUp />
+          递归折叠
+        </ContextMenuItem>
+        {!multiSelectMode && !isProtected && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={handleEnterMultiSelect}>
+              <CheckSquare />
+              多选
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuGroup>
     </ContextMenuContent>
   ) : (
     <ContextMenuContent className="w-48">
-      <ContextMenuItem onSelect={handleEdit} className="text-xs h-7">
-        <Pencil className="size-3.5 mr-2" />
-        编辑
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={() => openMoveDialog(node)} className="text-xs h-7">
-        <FolderInput className="size-3.5 mr-2" />
-        移动到
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleDelete} className="text-xs h-7 text-destructive">
-        <Trash2 className="size-3.5 mr-2" />
-        删除
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={handleCopyLink} className="text-xs h-7">
-        <Copy className="size-3.5 mr-2" />
-        复制链接
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={handleOpenNewTab} className="text-xs h-7">
-        <ExternalLink className="size-3.5 mr-2" />
-        在新标签页打开
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleOpenNewWindow} className="text-xs h-7">
-        <AppWindow className="size-3.5 mr-2" />
-        在新窗口打开
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={handleOpenIncognito} className="text-xs h-7">
-        <EyeOff className="size-3.5 mr-2" />
-        在隐私窗口打开
-      </ContextMenuItem>
-      {!multiSelectMode && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleEnterMultiSelect} className="text-xs h-7">
-            <CheckSquare className="size-3.5 mr-2" />
-            多选
-          </ContextMenuItem>
-        </>
-      )}
+      <ContextMenuGroup>
+        <ContextMenuItem onClick={handleEdit}>
+          <Pencil />
+          编辑
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => openMoveDialog(node)}>
+          <FolderInput />
+          移动到
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleDelete} variant="destructive">
+          <Trash2 />
+          删除
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleCopyLink}>
+          <Copy />
+          复制链接
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleOpenNewTab}>
+          <ExternalLink />
+          在新标签页打开
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleOpenNewWindow}>
+          <AppWindow />
+          在新窗口打开
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleOpenIncognito}>
+          <EyeOff />
+          在隐私窗口打开
+        </ContextMenuItem>
+        {!multiSelectMode && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={handleEnterMultiSelect}>
+              <CheckSquare />
+              多选
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuGroup>
     </ContextMenuContent>
   );
 
@@ -544,8 +602,9 @@ export function TreeNodeContent({
     'flex items-center h-7 pr-2 cursor-pointer select-none rounded-md transition-colors',
     'text-xs gap-0.5 overflow-hidden',
     isSelected
-      ? 'bg-primary/10 hover:bg-primary/15 data-[state=open]:bg-primary/10'
-      : 'hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60'
+      ? 'bg-primary/10 hover:bg-primary/15'
+      : 'hover:bg-accent/60 active:bg-accent',
+    contextActive && (isSelected ? 'bg-primary/15' : 'bg-accent/60')
   );
   const triggerDataProps = {
     'data-node-id': node.id,
@@ -566,35 +625,49 @@ export function TreeNodeContent({
   }
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        {isBookmark ? (
-          <a
-            href={node.url}
-            ref={setNodeRef}
-            title={titleAttr}
-            className={triggerClassName}
-            onClick={handleClick}
-            {...triggerDataProps}
-            {...listeners}
-            {...attributes}
-          >
-            {innerContent}
-          </a>
-        ) : (
-          <div
-            ref={setNodeRef}
-            title={titleAttr}
-            className={triggerClassName}
-            onClick={handleClick}
-            {...triggerDataProps}
-            {...listeners}
-            {...attributes}
-          >
-            {innerContent}
-          </div>
-        )}
-      </ContextMenuTrigger>
+    <ContextMenu
+      onOpenChange={(open) => {
+        contextOpenRef.current = open;
+        if (open) setContextActive(true);
+      }}
+      onOpenChangeComplete={(open) => {
+        if (!open && !contextOpenRef.current) setContextActive(false);
+        if (!open && pendingRenameRef.current) {
+          pendingRenameRef.current = false;
+          onRenameStart?.(node.id, node.title);
+        }
+      }}
+    >
+      <ContextMenuTrigger
+        render={
+          isBookmark && !multiSelectMode ? (
+            <a
+              href={node.url}
+              ref={setNodeRef}
+              title={titleAttr}
+              className={triggerClassName}
+              onClick={handleClick}
+              {...triggerDataProps}
+              {...listeners}
+              {...attributes}
+            >
+              {innerContent}
+            </a>
+          ) : (
+            <div
+              ref={setNodeRef}
+              title={titleAttr}
+              className={triggerClassName}
+              onClick={handleClick}
+              {...triggerDataProps}
+              {...listeners}
+              {...attributes}
+            >
+              {innerContent}
+            </div>
+          )
+        }
+      />
       {showBatchMenu ? batchContextMenuContent : contextMenuContent}
     </ContextMenu>
   );

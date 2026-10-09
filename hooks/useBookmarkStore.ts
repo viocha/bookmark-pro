@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/toast';
 import {
   getBookmarkTree,
   createBookmark,
@@ -61,28 +61,61 @@ interface BookmarkState {
   setSearchQuery: (query: string) => void;
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
-  locateNode: (nodeId: string, options?: { expandTarget?: boolean }) => Promise<void>;
+  locateNode: (
+    nodeId: string,
+    options?: { expandTarget?: boolean }
+  ) => Promise<void>;
 
   // CRUD
-  addBookmark: (parentId: string, title: string, url: string, position?: 'top' | 'bottom') => Promise<chrome.bookmarks.BookmarkTreeNode>;
-  addFolder: (parentId: string, title: string, position?: 'top' | 'bottom') => Promise<void>;
-  editNode: (id: string, changes: { title?: string; url?: string }) => Promise<void>;
+  addBookmark: (
+    parentId: string,
+    title: string,
+    url: string,
+    position?: 'top' | 'bottom'
+  ) => Promise<chrome.bookmarks.BookmarkTreeNode>;
+  addFolder: (
+    parentId: string,
+    title: string,
+    position?: 'top' | 'bottom'
+  ) => Promise<void>;
+  editNode: (
+    id: string,
+    changes: { title?: string; url?: string }
+  ) => Promise<void>;
   deleteNode: (node: chrome.bookmarks.BookmarkTreeNode) => Promise<void>;
-  moveNode: (id: string, destination: { parentId?: string; index?: number }) => Promise<void>;
-  undoDeleteBookmark: (node: chrome.bookmarks.BookmarkTreeNode) => Promise<void>;
+  moveNode: (
+    id: string,
+    destination: { parentId?: string; index?: number }
+  ) => Promise<void>;
+  undoDeleteBookmark: (
+    node: chrome.bookmarks.BookmarkTreeNode
+  ) => Promise<void>;
 
   // Dialog state
   openEditDialog: (node: chrome.bookmarks.BookmarkTreeNode) => void;
   closeEditDialog: () => void;
+  finishCloseEditDialog: () => void;
   openCreateFolderDialog: (parentId: string) => void;
   closeCreateFolderDialog: () => void;
-  openAddBookmarkDialog: (node: chrome.bookmarks.BookmarkTreeNode, title: string, url: string) => void;
+  finishCloseCreateFolderDialog: () => void;
+  openAddBookmarkDialog: (
+    node: chrome.bookmarks.BookmarkTreeNode,
+    title: string,
+    url: string
+  ) => void;
   closeAddBookmarkDialog: () => void;
-  undoDeleteFolder: (title: string, parentId: string, children: chrome.bookmarks.BookmarkTreeNode[], index?: number) => Promise<void>;
+  finishCloseAddBookmarkDialog: () => void;
+  undoDeleteFolder: (
+    title: string,
+    parentId: string,
+    children: chrome.bookmarks.BookmarkTreeNode[],
+    index?: number
+  ) => Promise<void>;
 
   // Move dialog
   openMoveDialog: (node: chrome.bookmarks.BookmarkTreeNode) => void;
   closeMoveDialog: () => void;
+  finishCloseMoveDialog: () => void;
 
   // Multi-select
   enterMultiSelectMode: () => void;
@@ -207,7 +240,8 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Walk up the tree to find all ancestor IDs
     while (currentId) {
       try {
-        const nodes: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.get(currentId);
+        const nodes: chrome.bookmarks.BookmarkTreeNode[] =
+          await chrome.bookmarks.get(currentId);
         const node: chrome.bookmarks.BookmarkTreeNode | undefined = nodes[0];
         if (isTargetNode && options?.expandTarget && node && !node.url) {
           next.add(node.id);
@@ -221,7 +255,13 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       }
     }
     // Set locateTargetId so BookmarkTree handles scroll after mount
-    set({ expandedIds: next, searchQuery: '', searchResults: null, isSearching: false, locateTargetId: nodeId });
+    set({
+      expandedIds: next,
+      searchQuery: '',
+      searchResults: null,
+      isSearching: false,
+      locateTargetId: nodeId,
+    });
   },
 
   addBookmark: async (parentId, title, url, position) => {
@@ -240,7 +280,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Sort existing children: folders before bookmarks
     await normalizeFolderChildren(parentId);
     const children = await chrome.bookmarks.getChildren(parentId);
-    const folders = children.filter(c => !c.url);
+    const folders = children.filter((c) => !c.url);
     // Determine insert index based on position
     const insertIndex = position === 'top' ? 0 : folders.length;
     await createBookmark(parentId, title, undefined, insertIndex);
@@ -256,7 +296,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       if (changed) adjustedCount++;
       // Re-fetch children after normalization
       const updatedChildren = await chrome.bookmarks.getChildren(node.id);
-      const folders = updatedChildren.filter(c => !c.url);
+      const folders = updatedChildren.filter((c) => !c.url);
       // Recurse into subfolders
       for (const child of folders) {
         const subtree = await chrome.bookmarks.getSubTree(child.id);
@@ -279,9 +319,17 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       await get().loadTree();
     }
     if (adjustedCount === 0) {
-      toast('无需调整', { description: '所有文件夹的子项顺序已符合规范', duration: 3000 });
+      toast.add({
+        title: '无需调整',
+        description: '所有文件夹的子项顺序已符合规范',
+        timeout: 3000,
+      });
     } else {
-      toast('排序完成', { description: `已调整 ${adjustedCount} 个文件夹的子项顺序`, duration: 3000 });
+      toast.add({
+        title: '排序完成',
+        description: `已调整 ${adjustedCount} 个文件夹的子项顺序`,
+        timeout: 3000,
+      });
     }
   },
 
@@ -320,7 +368,12 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   closeEditDialog: () => {
-    set({ editingNode: null, editDialogOpen: false });
+    set({ editDialogOpen: false });
+  },
+
+  // 在 onOpenChangeComplete 中清理；快速重新打开时保留新数据。
+  finishCloseEditDialog: () => {
+    if (!get().editDialogOpen) set({ editingNode: null });
   },
 
   openCreateFolderDialog: (parentId) => {
@@ -328,7 +381,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   closeCreateFolderDialog: () => {
-    set({ createFolderParentId: null, createFolderDialogOpen: false });
+    set({ createFolderDialogOpen: false });
+  },
+
+  finishCloseCreateFolderDialog: () => {
+    if (!get().createFolderDialogOpen) set({ createFolderParentId: null });
   },
 
   openAddBookmarkDialog: (node, title, url) => {
@@ -341,8 +398,12 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   closeAddBookmarkDialog: () => {
+    set({ addBookmarkDialogOpen: false });
+  },
+
+  finishCloseAddBookmarkDialog: () => {
+    if (get().addBookmarkDialogOpen) return;
     set({
-      addBookmarkDialogOpen: false,
       addBookmarkNode: null,
       addBookmarkTitle: '',
       addBookmarkUrl: '',
@@ -353,7 +414,10 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Re-create folder
     const folder = await createBookmark(parentId, title, undefined, index);
     // Re-create children recursively
-    const recreateChildren = async (parentId: string, nodes: chrome.bookmarks.BookmarkTreeNode[]) => {
+    const recreateChildren = async (
+      parentId: string,
+      nodes: chrome.bookmarks.BookmarkTreeNode[]
+    ) => {
       for (const child of nodes) {
         if (child.url) {
           await createBookmark(parentId, child.title, child.url);
@@ -378,11 +442,20 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   openMoveDialog: (node) => {
-    set({ moveTargetNode: node, moveTargetNodes: [node], moveDialogOpen: true });
+    set({
+      moveTargetNode: node,
+      moveTargetNodes: [node],
+      moveDialogOpen: true,
+    });
   },
 
   closeMoveDialog: () => {
-    set({ moveTargetNode: null, moveTargetNodes: [], moveDialogOpen: false });
+    set({ moveDialogOpen: false });
+  },
+
+  finishCloseMoveDialog: () => {
+    if (!get().moveDialogOpen)
+      set({ moveTargetNode: null, moveTargetNodes: [] });
   },
 
   // Multi-select
@@ -391,7 +464,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   exitMultiSelectMode: () => {
-    set({ multiSelectMode: false, selectedIds: new Set<string>(), lastSelectedId: null });
+    set({
+      multiSelectMode: false,
+      selectedIds: new Set<string>(),
+      lastSelectedId: null,
+    });
   },
 
   toggleSelect: (id: string) => {
@@ -446,7 +523,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       n.children?.forEach(findNodes);
     };
     tree.forEach(findNodes);
-    set({ moveTargetNodes: nodes, moveTargetNode: nodes[0] ?? null, moveDialogOpen: true });
+    set({
+      moveTargetNodes: nodes,
+      moveTargetNode: nodes[0] ?? null,
+      moveDialogOpen: true,
+    });
   },
 
   confirmBatchDelete: async () => {
@@ -454,7 +535,9 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     if (selectedIds.size === 0) return;
     // Collect full node snapshots (deep clone with children for folders)
     const nodes: chrome.bookmarks.BookmarkTreeNode[] = [];
-    const deepClone = (n: chrome.bookmarks.BookmarkTreeNode): chrome.bookmarks.BookmarkTreeNode => ({
+    const deepClone = (
+      n: chrome.bookmarks.BookmarkTreeNode
+    ): chrome.bookmarks.BookmarkTreeNode => ({
       ...n,
       children: n.children?.map(deepClone),
     });
@@ -492,17 +575,22 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       selectedIds: new Set<string>(),
       lastSelectedId: null,
     });
-    toast(`已删除 ${count} 个项目`, {
-      action: {
-        label: '撤销',
+    const undoToastId = toast.add({
+      title: `已删除 ${count} 个项目`,
+      actionProps: {
+        children: '撤销',
         onClick: async () => {
+          toast.close(undoToastId);
+
           // Suppress auto-reload during batch undo
           set({ _suppressReload: true });
           try {
             // Sort snapshots by index ascending so lower-index items are
             // recreated first — avoids "Index out of bounds" when restoring
             // multiple items under the same (now-empty) parent.
-            const sorted = [...savedSnapshots].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+            const sorted = [...savedSnapshots].sort(
+              (a, b) => (a.index ?? 0) - (b.index ?? 0)
+            );
             for (const snap of sorted) {
               if (isProtectedNode(snap.id)) continue;
               if (isFolder(snap)) {
@@ -510,14 +598,14 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
                   snap.title,
                   snap.parentId ?? '1',
                   snap.children ?? [],
-                  snap.index,
+                  snap.index
                 );
               } else {
                 await createBookmark(
                   snap.parentId ?? '1',
                   snap.title,
                   snap.url,
-                  snap.index,
+                  snap.index
                 );
               }
             }
@@ -525,10 +613,10 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
             set({ _suppressReload: false });
             await get().loadTree();
           }
-          toast(`已恢复 ${count} 个项目`, { duration: 2000 });
+          toast.add({ title: `已恢复 ${count} 个项目`, timeout: 2000 });
         },
       },
-      duration: 5000,
+      timeout: 5000,
     });
   },
 }));

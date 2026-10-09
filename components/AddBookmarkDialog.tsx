@@ -4,12 +4,15 @@ import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { InsertPositionField } from '@/components/InsertPositionField';
 
 export function AddBookmarkDialog() {
   const {
@@ -18,6 +21,7 @@ export function AddBookmarkDialog() {
     addBookmarkTitle,
     addBookmarkUrl,
     closeAddBookmarkDialog,
+    finishCloseAddBookmarkDialog,
     editNode,
     deleteNode,
     moveNode,
@@ -34,13 +38,13 @@ export function AddBookmarkDialog() {
       setTitle(addBookmarkTitle);
       setUrl(addBookmarkUrl);
       setPosition(bookmarkInsertPosition);
-      // Select title text after dialog renders
-      requestAnimationFrame(() => {
-        titleInputRef.current?.focus();
-        titleInputRef.current?.select();
-      });
     }
-  }, [addBookmarkDialogOpen, addBookmarkTitle, addBookmarkUrl, bookmarkInsertPosition]);
+  }, [
+    addBookmarkDialogOpen,
+    addBookmarkTitle,
+    addBookmarkUrl,
+    bookmarkInsertPosition,
+  ]);
 
   const handleDone = async () => {
     if (!addBookmarkNode) return;
@@ -56,7 +60,7 @@ export function AddBookmarkDialog() {
       const parentId = addBookmarkNode.parentId;
       if (position === 'top') {
         const children = await chrome.bookmarks.getChildren(parentId);
-        const folders = children.filter(c => !c.url);
+        const folders = children.filter((c) => !c.url);
         await moveNode(addBookmarkNode.id, { parentId, index: folders.length });
       } else {
         // Append to end (no index = bottom)
@@ -80,64 +84,59 @@ export function AddBookmarkDialog() {
   };
 
   return (
-    <Dialog open={addBookmarkDialogOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[320px] p-4 gap-3">
-        <DialogHeader className="pb-0">
-          <DialogTitle className="text-sm">已添加书签</DialogTitle>
+    <Dialog
+      open={addBookmarkDialogOpen}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={(open) => {
+        if (!open) finishCloseAddBookmarkDialog();
+      }}
+    >
+      <DialogContent
+        initialFocus={() => {
+          titleInputRef.current?.select();
+          return titleInputRef.current;
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>已添加书签</DialogTitle>
           <DialogDescription className="sr-only">
-            编辑刚添加的书签名称、网址和插入位置。
+            编辑名称、网址和插入位置
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">名称</label>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="add-bookmark-title">名称</FieldLabel>
             <Input
+              id="add-bookmark-title"
               ref={titleInputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDone(); }}
-              className="h-7 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDone();
+              }}
             />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">网址</label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="add-bookmark-url">网址</FieldLabel>
             <Input
+              id="add-bookmark-url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDone(); }}
-              className="h-7 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDone();
+              }}
             />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">插入位置</label>
-            <div className="flex gap-1">
-              <Button
-                variant={position === 'top' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPosition('top')}
-                className="h-7 text-xs flex-1"
-              >
-                顶部
-              </Button>
-              <Button
-                variant={position === 'bottom' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPosition('bottom')}
-                className="h-7 text-xs flex-1"
-              >
-                底部
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 pt-0">
-          <Button variant="outline" size="sm" onClick={handleRemove} className="h-7 text-xs text-destructive hover:text-destructive">
+          </Field>
+          <InsertPositionField value={position} onChange={setPosition} />
+        </FieldGroup>
+        <DialogFooter>
+          <Button variant="destructive" size="sm" onClick={handleRemove}>
             移除
           </Button>
-          <Button size="sm" onClick={handleDone} className="h-7 text-xs">
+          <Button size="sm" onClick={handleDone}>
             完成
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

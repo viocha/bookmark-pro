@@ -454,10 +454,8 @@ export function BookmarkTree() {
   }, [clearHoverTimer]);
 
   const handleRenameStart = useCallback((id: string, title: string) => {
-    setTimeout(() => {
-      setRenamingId(id);
-      setRenamingTitle(title);
-    }, 80);
+    setRenamingId(id);
+    setRenamingTitle(title);
   }, []);
 
   const handleRenameCommit = useCallback(async () => {

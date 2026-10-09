@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
@@ -6,7 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -22,28 +24,26 @@ function PositionToggle({
   value: InsertPosition;
   onChange: (pos: InsertPosition) => void;
 }) {
+  const id = useId();
   return (
-    <div>
-      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
-      <div className="flex gap-1">
-        <Button
-          variant={value === 'top' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onChange('top')}
-          className="h-7 text-xs flex-1"
-        >
-          顶部
-        </Button>
-        <Button
-          variant={value === 'bottom' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onChange('bottom')}
-          className="h-7 text-xs flex-1"
-        >
-          底部
-        </Button>
-      </div>
-    </div>
+    <Field>
+      <FieldLabel id={id}>{label}</FieldLabel>
+      <ToggleGroup
+        className="w-full"
+        aria-labelledby={id}
+        variant="outline"
+        size="sm"
+        spacing={0}
+        value={[value]}
+        onValueChange={(values) => {
+          const next = values[0];
+          if (next === 'top' || next === 'bottom') onChange(next);
+        }}
+      >
+        <ToggleGroupItem className="flex-1" value="top">顶部</ToggleGroupItem>
+        <ToggleGroupItem className="flex-1" value="bottom">底部</ToggleGroupItem>
+      </ToggleGroup>
+    </Field>
   );
 }
 
@@ -57,14 +57,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[320px] p-4 gap-3">
-        <DialogHeader className="pb-0">
-          <DialogTitle className="text-sm">设置</DialogTitle>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>设置</DialogTitle>
           <DialogDescription className="sr-only">
             设置新建文件夹和添加书签时默认使用的插入位置。
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <FieldGroup>
           <PositionToggle
             label="新建文件夹默认位置"
             value={folderInsertPosition}
@@ -75,7 +75,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             value={bookmarkInsertPosition}
             onChange={setBookmarkInsertPosition}
           />
-        </div>
+        </FieldGroup>
       </DialogContent>
     </Dialog>
   );
