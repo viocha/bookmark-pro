@@ -781,7 +781,7 @@ export default function App() {
       <h2 className="text-sm font-medium">
         {isNewBookmark ? '已添加书签' : '编辑书签'}
       </h2>
-      <FieldGroup>
+      <FieldGroup className="gap-3">
         <Field>
           <FieldLabel htmlFor="popup-title">名称</FieldLabel>
           <Input
