@@ -595,7 +595,7 @@ export default function App() {
 
   // ─── Render ───
   if (loading) {
-    return <div className="w-[360px] min-h-[188px] bg-background" />;
+    return <div className="w-[400px] min-h-[188px] bg-background" />;
   }
 
   // ─── Tree view ───
@@ -609,7 +609,7 @@ export default function App() {
       : expandedIds;
 
     return (
-      <div className="w-[360px] h-[600px] flex flex-col overflow-hidden">
+      <div className="w-[400px] h-[600px] flex flex-col overflow-hidden">
         <div className="shrink-0 px-3 pt-3 pb-2">
           <h2 className="text-sm font-medium">
             {isNewBookmark ? '已添加书签' : '编辑书签'} — 更多
@@ -700,12 +700,7 @@ export default function App() {
             侧栏定位
           </Button>
           <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-
-            onClick={handleRemove}
-          >
+          <Button variant="destructive" size="sm" onClick={handleRemove}>
             移除
           </Button>
           <Button
@@ -779,7 +774,7 @@ export default function App() {
   return (
     <div
       className={cn(
-        'w-[360px] flex flex-col gap-4 p-4',
+        'w-[400px] flex flex-col gap-4 p-4',
         dropdownExpanded && 'min-h-[520px]'
       )}
     >
