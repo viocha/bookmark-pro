@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useLayoutEffect, useRef } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
@@ -27,8 +27,8 @@ export function CreateFolderDialog() {
   const [position, setPosition] = useState<InsertPosition>('bottom');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync default position from settings when dialog opens, set default name and auto-select
-  useEffect(() => {
+  // 在对话框初始聚焦前准备默认值，避免值更新覆盖文本选区。
+  useLayoutEffect(() => {
     if (createFolderDialogOpen) {
       setPosition(folderInsertPosition);
       setTitle('新建文件夹');
@@ -63,12 +63,11 @@ export function CreateFolderDialog() {
         setTitle('');
       }}
     >
-      <DialogContent
-        initialFocus={() => {
-          inputRef.current?.select();
-          return inputRef.current;
-        }}
-      >
+      <DialogContent initialFocus={() => {
+        inputRef.current?.focus({ preventScroll: true });
+        inputRef.current?.select();
+        return false;
+      }}>
         <DialogHeader>
           <DialogTitle>新建文件夹</DialogTitle>
           <DialogDescription className="sr-only">

@@ -466,13 +466,15 @@ export function MoveDialog() {
           </Button>
         </DialogFooter>
       </DialogContent>
-      <Dialog open={nfOpen} onOpenChange={setNfOpen}>
-        <DialogContent
-          initialFocus={() => {
-            nfInputRef.current?.select();
-            return nfInputRef.current;
-          }}
-        >
+      <Dialog
+        open={nfOpen}
+        onOpenChange={setNfOpen}
+      >
+        <DialogContent initialFocus={() => {
+          nfInputRef.current?.focus({ preventScroll: true });
+          nfInputRef.current?.select();
+          return false;
+        }}>
           <DialogHeader>
             <DialogTitle>新建文件夹</DialogTitle>
             <DialogDescription className="sr-only">

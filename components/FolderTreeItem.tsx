@@ -187,6 +187,7 @@ export function FolderTreeItem({
           onOpenChange={(open) => {
             contextOpenRef.current = open;
             if (open) {
+              suppressCloseAutoFocusRef.current = false;
               setContextActive(true);
               onContextMenuChange(node.id);
             }
@@ -208,7 +209,10 @@ export function FolderTreeItem({
             finalFocus={() => !suppressCloseAutoFocusRef.current}
           >
             <ContextMenuGroup>
-              <ContextMenuItem onClick={() => onCreateFolder(node.id)}>
+              <ContextMenuItem onClick={() => {
+                suppressCloseAutoFocusRef.current = true;
+                onCreateFolder(node.id);
+              }}>
                 <FolderPlus />
                 新建文件夹
               </ContextMenuItem>

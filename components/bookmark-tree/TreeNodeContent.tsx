@@ -107,6 +107,22 @@ export function TreeNodeContent({
   const pendingRenameRef = useRef(false);
   const [contextActive, setContextActive] = useState(false);
   const contextOpenRef = useRef(false);
+  const [currentPageReady, setCurrentPageReady] = useState(false);
+  const [currentPageBookmark, setCurrentPageBookmark] = useState<chrome.bookmarks.BookmarkTreeNode | null>(null);
+
+  const loadCurrentPage = async () => {
+    setCurrentPageReady(false);
+    try {
+      let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const existing = tab?.url ? await chrome.bookmarks.search({ url: tab.url }) : [];
+      if (!contextOpenRef.current) return;
+      setCurrentPageBookmark(existing[0] ?? null);
+      setCurrentPageReady(true);
+    } catch (err) {
+      console.error('[Bookmark Pro] currentPage error:', err);
+    }
+  };
   const isRenaming = folder && renamingId === node.id && !isOverlay;
 
   useEffect(() => {
@@ -257,13 +273,11 @@ export function TreeNodeContent({
         // Check if URL already exists globally
         const existing = await chrome.bookmarks.search({ url: tab.url });
         if (existing.length > 0) {
-          toast.add({
-            title: '书签已存在',
-            description: existing[0].title || '(无标题)',
-            timeout: 3000,
-          });
+          suppressCloseAutoFocusRef.current = true;
+          openEditDialog(existing[0]);
           return;
         }
+        suppressCloseAutoFocusRef.current = true;
         const newNode = await addBookmark(
           node.id,
           tab.title,
@@ -493,11 +507,18 @@ export function TreeNodeContent({
       finalFocus={() => !suppressCloseAutoFocusRef.current}
     >
       <ContextMenuGroup>
-        <ContextMenuItem onClick={handleAddCurrentPage}>
-          <BookmarkPlus />
-          添加当前页面
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handleCreateFolder}>
+          <ContextMenuItem disabled={!currentPageReady} onClick={() => {
+            suppressCloseAutoFocusRef.current = true;
+            if (currentPageBookmark) openEditDialog(currentPageBookmark);
+            else void handleAddCurrentPage();
+          }}>
+            {currentPageBookmark ? <Pencil /> : <BookmarkPlus />}
+            {!currentPageReady ? '当前页面' : currentPageBookmark ? '编辑当前页面' : '添加当前页面'}
+          </ContextMenuItem>
+        <ContextMenuItem onClick={() => {
+          suppressCloseAutoFocusRef.current = true;
+          handleCreateFolder();
+        }}>
           <FolderPlus />
           新建文件夹
         </ContextMenuItem>
@@ -628,7 +649,11 @@ export function TreeNodeContent({
     <ContextMenu
       onOpenChange={(open) => {
         contextOpenRef.current = open;
-        if (open) setContextActive(true);
+        if (open) {
+          suppressCloseAutoFocusRef.current = false;
+          setContextActive(true);
+          if (folder && !showBatchMenu) void loadCurrentPage();
+        }
       }}
       onOpenChangeComplete={(open) => {
         if (!open && !contextOpenRef.current) setContextActive(false);

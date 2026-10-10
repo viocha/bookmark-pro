@@ -609,13 +609,13 @@ export default function App() {
       : expandedIds;
 
     return (
-      <div className="w-[360px] flex flex-col">
-        <div className="px-3 pt-3 pb-2">
+      <div className="w-[360px] h-[600px] flex flex-col overflow-hidden">
+        <div className="shrink-0 px-3 pt-3 pb-2">
           <h2 className="text-sm font-medium">
             {isNewBookmark ? '已添加书签' : '编辑书签'} — 更多
           </h2>
         </div>
-        <FieldGroup className="px-3">
+        <FieldGroup className="shrink-0 gap-2 px-3">
           <Field>
             <FieldLabel htmlFor="popup-tree-title">名称</FieldLabel>
             <Input
@@ -633,7 +633,7 @@ export default function App() {
             />
           </Field>
         </FieldGroup>
-        <div className="px-3 pt-2 flex flex-col gap-1.5">
+        <div className="px-3 pt-2 flex min-h-0 flex-1 flex-col gap-1.5">
           <InputGroup>
             <InputGroupAddon>
               <Search />
@@ -648,7 +648,7 @@ export default function App() {
           </InputGroup>
           <ScrollArea
             ref={treeScrollRef}
-            className="h-[360px] border rounded-md min-w-0 overflow-hidden"
+            className="flex-1 min-h-0 border rounded-md min-w-0 overflow-hidden"
           >
             <div
               className={cn(
@@ -681,7 +681,7 @@ export default function App() {
             </div>
           </ScrollArea>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2">
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2">
           <Button
             variant="outline"
             size="sm"
@@ -721,12 +721,11 @@ export default function App() {
           open={createFolderDialogOpen}
           onOpenChange={setCreateFolderDialogOpen}
         >
-          <DialogContent
-            initialFocus={() => {
-              createFolderInputRef.current?.select();
-              return createFolderInputRef.current;
-            }}
-          >
+          <DialogContent initialFocus={() => {
+            createFolderInputRef.current?.focus({ preventScroll: true });
+            createFolderInputRef.current?.select();
+            return false;
+          }}>
             <DialogHeader>
               <DialogTitle>新建文件夹</DialogTitle>
               <DialogDescription className="sr-only">
