@@ -9,6 +9,7 @@ export default defineConfig({
   },
   manifest: {
     name: 'Bookmark Pro',
+    minimum_chrome_version: '142',
     description: '强大的书签管理器 - 侧栏树形视图、拖拽排序、全局搜索、快速收藏',
     permissions: ['bookmarks', 'sidePanel', 'activeTab', 'tabs', 'favicon', 'storage', 'contextMenus'],
     externally_connectable: {

@@ -13,15 +13,19 @@ export default defineBackground(() => {
   // 供 onCommand 在 await 之后判断面板原本是否打开。
   let stateRestored = false;
   const prevOpenSidePanels = new Set<number>();
+  // 启动期间到达的浏览器事件优先于异步读取的状态。
+  const changedDuringRestore = new Set<number>();
   const stateRestorePromise = chrome.storage.session.get(STORAGE_KEY).then((data) => {
     const rawIds = data[STORAGE_KEY];
     const ids = Array.isArray(rawIds) ? rawIds.filter((id): id is number => typeof id === 'number') : [];
     ids.forEach((id) => {
+      if (changedDuringRestore.has(id)) return;
       openSidePanels.add(id);
       prevOpenSidePanels.add(id);
     });
     stateRestored = true;
-    updateDebugMenu();
+    changedDuringRestore.clear();
+    persistState();
   });
 
   function persistState() {
@@ -65,25 +69,44 @@ export default defineBackground(() => {
     });
   }
 
-  // 监听来自 sidepanel 的长连接以跟踪真实打开/关闭状态
-  chrome.runtime.onConnect.addListener((port) => {
-    if (port.name.startsWith('sidepanel-')) {
-      const windowId = parseInt(port.name.replace('sidepanel-', ''), 10);
-      if (!isNaN(windowId)) {
-        openSidePanels.add(windowId);
-        persistState();
+  // 浏览器事件在 SW 休眠时也能唤醒后台，关闭状态不依赖页面长连接。
+  chrome.sidePanel.onOpened.addListener(({ windowId }) => {
+    if (!stateRestored) changedDuringRestore.add(windowId);
+    openSidePanels.add(windowId);
+    persistState();
+  });
+  chrome.sidePanel.onClosed.addListener(({ windowId }) => {
+    if (!stateRestored) changedDuringRestore.add(windowId);
+    openSidePanels.delete(windowId);
+    prevOpenSidePanels.delete(windowId);
+    persistState();
+  });
 
-        port.onDisconnect.addListener(() => {
-          openSidePanels.delete(windowId);
-          persistState();
-        });
-      }
-    }
+  // Edge 原生关闭按钮可能不触发 onClosed，以页面连接销毁补充关闭通知。
+  const panelPorts = new Map<number, chrome.runtime.Port>();
+  chrome.runtime.onConnect.addListener((port) => {
+    if (!/^sidepanel-\d+$/.test(port.name)) return;
+    const windowId = Number(port.name.slice('sidepanel-'.length));
+    panelPorts.set(windowId, port);
+    if (!stateRestored) changedDuringRestore.add(windowId);
+    openSidePanels.add(windowId);
+    persistState();
+    port.onDisconnect.addListener(() => {
+      // 重连替换端口后，旧连接的关闭不能覆盖当前页面的状态。
+      if (panelPorts.get(windowId) !== port) return;
+      panelPorts.delete(windowId);
+      if (!stateRestored) changedDuringRestore.add(windowId);
+      openSidePanels.delete(windowId);
+      prevOpenSidePanels.delete(windowId);
+      persistState();
+    });
   });
 
   // 窗口关闭时清理对应状态
   chrome.windows.onRemoved.addListener((windowId) => {
+    if (!stateRestored) changedDuringRestore.add(windowId);
     openSidePanels.delete(windowId);
+    prevOpenSidePanels.delete(windowId);
     persistState();
   });
 
@@ -163,13 +186,14 @@ export default defineBackground(() => {
       // SW 刚被快捷键唤醒，openSidePanels 尚为空（等待 storage 恢复中）。
       // 必须在此处同步调用 sidePanel.open()，以保留用户手势上下文；
       // 若面板已开则 open() 是 no-op，不会报错。
+      const wasOpen = openSidePanels.has(windowId);
       chrome.sidePanel.open({ windowId });
 
       // sidePanel.close() 不需要用户手势，可在 await 后安全调用。
       // 等待状态恢复，然后判断面板原本是否打开（即用户是否想关闭）。
       await stateRestorePromise;
 
-      if (prevOpenSidePanels.has(windowId)) {
+      if (wasOpen || prevOpenSidePanels.has(windowId)) {
         // 面板原本是打开的 → 用户想关闭，上方 open() 是 no-op，现在关闭
         openSidePanels.delete(windowId);
         persistState();

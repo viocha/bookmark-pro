@@ -4,12 +4,10 @@ import { ThemeProvider } from 'next-themes';
 import App from './App';
 import '@/assets/globals.css';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { trackSidePanelConnection } from '@/lib/sidepanel-connection';
 
-// 建立与 background 的长连接，用于可靠监听侧栏关闭（原生 x 按钮）
-chrome.windows.getCurrent().then((win) => {
-  if (win.id != null) {
-    chrome.runtime.connect({ name: `sidepanel-${win.id}` });
-  }
+chrome.windows.getCurrent().then(({ id }) => {
+  if (id != null) trackSidePanelConnection(id);
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
