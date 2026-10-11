@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect, useRef } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { isFolder } from '@/lib/bookmark-api';
 import {
@@ -12,6 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { BookmarkFormFields } from '@/components/BookmarkFormFields';
+import { resetBookmarkFields } from '@/lib/bookmark-form-focus';
 
 export function EditDialog() {
   const {
@@ -23,8 +25,11 @@ export function EditDialog() {
   } = useBookmarkStore();
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const urlRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (editingNode) {
       setTitle(editingNode.title || '');
       setUrl(editingNode.url || '');
@@ -42,7 +47,8 @@ export function EditDialog() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
       handleSave();
     }
   };
@@ -57,7 +63,13 @@ export function EditDialog() {
         if (!open) finishCloseEditDialog();
       }}
     >
-      <DialogContent>
+      <DialogContent
+        ref={dialogRef}
+        initialFocus={folder ? undefined : () => {
+          resetBookmarkFields(titleRef.current, urlRef.current);
+          return dialogRef.current;
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{folder ? '编辑文件夹' : '编辑书签'}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -65,26 +77,28 @@ export function EditDialog() {
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="edit-title">名称</FieldLabel>
-            <Input
-              id="edit-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoFocus
-            />
-          </Field>
-          {!folder && (
+          {folder ? (
             <Field>
-              <FieldLabel htmlFor="edit-url">网址</FieldLabel>
+              <FieldLabel htmlFor="edit-title">名称</FieldLabel>
               <Input
-                id="edit-url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                id="edit-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
+                autoFocus
               />
             </Field>
+          ) : (
+            <BookmarkFormFields
+              idPrefix="edit"
+              title={title}
+              url={url}
+              onTitleChange={setTitle}
+              onUrlChange={setUrl}
+              titleRef={titleRef}
+              urlRef={urlRef}
+              onKeyDown={handleKeyDown}
+            />
           )}
         </FieldGroup>
         <DialogFooter>

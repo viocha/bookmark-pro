@@ -37,6 +37,8 @@ import type { FolderNode } from '@/lib/folder-tree';
 import { FolderTreeItem } from '@/components/FolderTreeItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { ScrollableTextarea } from '@/components/ScrollableTextarea';
+import { BookmarkFormFields } from '@/components/BookmarkFormFields';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -616,22 +618,13 @@ export default function App() {
           </h2>
         </div>
         <FieldGroup className="shrink-0 gap-2 px-3">
-          <Field>
-            <FieldLabel htmlFor="popup-tree-title">名称</FieldLabel>
-            <Input
-              id="popup-tree-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="popup-tree-url">网址</FieldLabel>
-            <Input
-              id="popup-tree-url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </Field>
+          <BookmarkFormFields
+            idPrefix="popup-tree"
+            title={title}
+            url={url}
+            onTitleChange={setTitle}
+            onUrlChange={setUrl}
+          />
         </FieldGroup>
         <div className="px-3 pt-2 flex min-h-0 flex-1 flex-col gap-1.5">
           <InputGroup>
@@ -784,8 +777,9 @@ export default function App() {
       <FieldGroup className="gap-3">
         <Field>
           <FieldLabel htmlFor="popup-title">名称</FieldLabel>
-          <Input
+          <ScrollableTextarea
             id="popup-title"
+            rows={2}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -805,7 +799,16 @@ export default function App() {
             onInputValueChange={(value, details) => {
               if (details.reason === 'input-change') setDropdownSearch(value);
             }}
-            onOpenChange={(open) => {
+            onOpenChange={(open, details) => {
+              // label 会转发一次按钮点击，由触发按钮统一处理开关，避免先关闭再打开。
+              if (
+                details.reason === 'outside-press' &&
+                details.event.target instanceof Element &&
+                details.event.target.closest('label[for="popup-folder"]')
+              ) {
+                details.cancel();
+                return;
+              }
               setDropdownOpen(open);
               if (open) {
                 setDropdownExpanded(true);
@@ -835,32 +838,35 @@ export default function App() {
               <Folder data-icon="inline-start" />
               <span className="flex-1 truncate text-left">{folderName}</span>
             </ComboboxTrigger>
-            <ComboboxContent className="min-w-0">
+            <ComboboxContent className="flex h-72 min-w-0 flex-col">
               <ComboboxInput
+                className="shrink-0"
                 aria-label="搜索文件夹"
                 placeholder="搜索文件夹…"
                 showTrigger={false}
               />
-              <ComboboxEmpty>
+              <ComboboxEmpty className="shrink-0">
                 {dropdownSearch.trim()
                   ? '未找到匹配的文件夹'
                   : '暂无最近文件夹'}
               </ComboboxEmpty>
-              <ComboboxList>
-                {(folder: RecentFolder) => (
-                  <ComboboxItem key={folder.id} value={folder}>
-                    <Folder />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{folder.title}</div>
-                      {folder.path && (
-                        <div className="truncate text-xs text-muted-foreground">
-                          {folder.path}
-                        </div>
-                      )}
-                    </div>
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
+              <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]]:overscroll-contain">
+                <ComboboxList className="max-h-none overflow-visible">
+                  {(folder: RecentFolder) => (
+                    <ComboboxItem key={folder.id} value={folder}>
+                      <Folder />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{folder.title}</div>
+                        {folder.path && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {folder.path}
+                          </div>
+                        )}
+                      </div>
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ScrollArea>
             </ComboboxContent>
           </Combobox>
         </Field>

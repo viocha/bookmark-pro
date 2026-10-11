@@ -145,6 +145,17 @@ body {
   font-family: var(--font-sans);
 }
 
+/* 扩展表单统一使用紧凑字号，滚动视口与文本框采用相同的行高。 */
+[data-slot='input-group'],
+:is(input, textarea):is(
+  [data-slot='input'],
+  [data-slot='textarea'],
+  [data-slot='input-group-control']
+) {
+  font-size: 13px;
+  line-height: 20px;
+}
+
 /* 统一操作控件光标，覆盖组件默认值，保留文本输入和拖动光标。 */
 :is(
   button,

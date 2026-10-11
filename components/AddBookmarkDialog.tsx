@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
@@ -10,8 +10,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { FieldGroup } from '@/components/ui/field';
+import { BookmarkFormFields } from '@/components/BookmarkFormFields';
+import { focusBookmarkTitle } from '@/lib/bookmark-form-focus';
 import { InsertPositionField } from '@/components/InsertPositionField';
 
 export function AddBookmarkDialog() {
@@ -31,9 +32,10 @@ export function AddBookmarkDialog() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [position, setPosition] = useState<InsertPosition>('bottom');
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
+  const urlInputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (addBookmarkDialogOpen) {
       setTitle(addBookmarkTitle);
       setUrl(addBookmarkUrl);
@@ -92,10 +94,7 @@ export function AddBookmarkDialog() {
       }}
     >
       <DialogContent
-        initialFocus={() => {
-          titleInputRef.current?.select();
-          return titleInputRef.current;
-        }}
+        initialFocus={() => focusBookmarkTitle(titleInputRef.current, urlInputRef.current, { selectTitle: true })}
       >
         <DialogHeader>
           <DialogTitle>已添加书签</DialogTitle>
@@ -104,29 +103,21 @@ export function AddBookmarkDialog() {
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="add-bookmark-title">名称</FieldLabel>
-            <Input
-              id="add-bookmark-title"
-              ref={titleInputRef}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleDone();
-              }}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="add-bookmark-url">网址</FieldLabel>
-            <Input
-              id="add-bookmark-url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleDone();
-              }}
-            />
-          </Field>
+          <BookmarkFormFields
+            idPrefix="add-bookmark"
+            title={title}
+            url={url}
+            onTitleChange={setTitle}
+            onUrlChange={setUrl}
+            titleRef={titleInputRef}
+            urlRef={urlInputRef}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void handleDone();
+              }
+            }}
+          />
           <InsertPositionField value={position} onChange={setPosition} />
         </FieldGroup>
         <DialogFooter>

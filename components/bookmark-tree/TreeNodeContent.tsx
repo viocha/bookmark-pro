@@ -39,6 +39,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { BookmarkText } from '@/components/BookmarkText';
 
 interface TreeNodeContentProps {
   item: FlattenedNode;
@@ -474,9 +475,11 @@ export function TreeNodeContent({
         />
       ) : (
         <>
-          <span className="truncate min-w-0 ml-0.5">
-            {node.title || '(无标题)'}
-          </span>
+          {folder ? (
+            <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
+          ) : (
+            <BookmarkText title={node.title} url={node.url} />
+          )}
           {folder && item.childCount > 0 && (
             <span className="ml-auto shrink-0 text-muted-foreground">
               {item.childCount}
@@ -491,7 +494,7 @@ export function TreeNodeContent({
     return (
       <div
         className={cn(
-          'flex items-center h-7 pr-2 cursor-pointer select-none rounded-md transition-colors',
+          'flex items-center min-h-7 py-1 pr-3 cursor-pointer select-none rounded-md transition-colors',
           'hover:bg-accent/60 active:bg-accent',
           'text-xs gap-0.5 overflow-hidden'
         )}
@@ -620,7 +623,7 @@ export function TreeNodeContent({
 
   const isBookmark = !folder && !!node.url;
   const triggerClassName = cn(
-    'flex items-center h-7 pr-2 cursor-pointer select-none rounded-md transition-colors',
+    'flex items-center min-h-7 py-1 pr-3 cursor-pointer select-none rounded-md transition-colors',
     'text-xs gap-0.5 overflow-hidden',
     isSelected
       ? 'bg-primary/10 hover:bg-primary/15'

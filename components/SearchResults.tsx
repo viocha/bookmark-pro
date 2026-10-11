@@ -33,6 +33,7 @@ import {
   BookmarkPlus,
 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
+import { BookmarkText } from '@/components/BookmarkText';
 
 export function SearchResults() {
   const store = useBookmarkStore();
@@ -384,7 +385,7 @@ function SearchResultItem({
               <FileText className="size-3.5 text-muted-foreground hidden" />
             </span>
             <div className="flex-1 min-w-0">
-              <div className="truncate">{node.title || '(无标题)'}</div>
+              <BookmarkText title={node.title} url={node.url} />
               {path && (
                 <div className="truncate text-[10px] text-muted-foreground">
                   {path}

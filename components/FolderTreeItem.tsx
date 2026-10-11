@@ -101,7 +101,7 @@ export function FolderTreeItem({
       data-folder-id={node.id}
       tabIndex={isDisabled ? undefined : 0}
       className={cn(
-        'flex items-center h-7 pr-2 cursor-pointer select-none text-xs gap-0.5 min-w-0 rounded-md outline-none transition-colors',
+        'flex items-center h-7 pr-3 cursor-pointer select-none text-xs gap-0.5 min-w-0 rounded-md outline-none transition-colors',
         'hover:bg-accent/60',
         isSelected && 'bg-primary/15 hover:bg-primary/20',
         isContextActive && !isSelected && 'bg-accent/60',
