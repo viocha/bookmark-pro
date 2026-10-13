@@ -832,7 +832,10 @@ export default function App() {
             <ComboboxTrigger
               id="popup-folder"
               render={
-                <Button variant="outline" className="w-full justify-between" />
+                <Button
+                  variant="outline"
+                  className="w-full justify-between peer-hover/field-label:not-aria-expanded:bg-background dark:peer-hover/field-label:not-aria-expanded:bg-input/30"
+                />
               }
             >
               <Folder data-icon="inline-start" />
