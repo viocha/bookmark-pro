@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { BookmarkFormFields } from '@/components/BookmarkFormFields';
-import { resetBookmarkFields } from '@/lib/bookmark-form-focus';
+import { focusBookmarkTitle } from '@/lib/bookmark-form-focus';
 
 export function EditDialog() {
   const {
@@ -27,7 +27,6 @@ export function EditDialog() {
   const [url, setUrl] = useState('');
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const urlRef = useRef<HTMLTextAreaElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (editingNode) {
@@ -64,10 +63,9 @@ export function EditDialog() {
       }}
     >
       <DialogContent
-        ref={dialogRef}
         initialFocus={folder ? undefined : () => {
-          resetBookmarkFields(titleRef.current, urlRef.current);
-          return dialogRef.current;
+          focusBookmarkTitle(titleRef.current, urlRef.current);
+          return false;
         }}
       >
         <DialogHeader>
