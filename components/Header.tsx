@@ -5,7 +5,6 @@ import { toast } from '@/components/ui/toast';
 import {
   Search,
   X,
-  Bookmark,
   ArrowDownUp,
   Settings,
   CheckSquare2,
@@ -251,7 +250,6 @@ export function Header() {
           </InputGroup>
         ) : (
           <>
-            <Bookmark className="size-4 shrink-0" />
             <span className="flex-1 truncate text-sm font-medium">
               书签管理
             </span>

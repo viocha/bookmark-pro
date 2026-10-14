@@ -1,4 +1,7 @@
+import { registerBookmarkActionIcon } from '@/lib/bookmark-action-icon';
+
 export default defineBackground(() => {
+  registerBookmarkActionIcon();
   // ── Disable side panel opening on action click so popup works ──
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 

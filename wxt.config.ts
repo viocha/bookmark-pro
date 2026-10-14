@@ -20,6 +20,12 @@ export default defineConfig({
     },
     action: {
       default_title: 'Open Bookmark Pro',
+      default_icon: {
+        16: 'action-icons/16.png',
+        32: 'action-icons/32.png',
+        48: 'action-icons/48.png',
+        128: 'action-icons/128.png',
+      },
     },
     commands: {
 			_execute_action: {
