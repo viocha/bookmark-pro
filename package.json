@@ -2,7 +2,7 @@
   "name": "bookmark-pro",
   "description": "强大的书签管理器 - 侧栏树形视图、拖拽排序、全局搜索、快速收藏",
   "private": true,
-  "version": "1.11.3",
+  "version": "1.11.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",

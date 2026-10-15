@@ -25,9 +25,10 @@ function createBackground() {
   const closed = createEvent();
   const command = createEvent();
   globalThis.chrome = {
-    tabs: { get: async () => ({}), query: async () => [], onActivated: createEvent(), onUpdated: createEvent(), onRemoved: createEvent() },
+    tabs: { get: async () => ({}), query: async () => [], onCreated: createEvent(), onActivated: createEvent(), onUpdated: createEvent(), onRemoved: createEvent() },
     bookmarks: { search: async () => [], onCreated: createEvent(), onRemoved: createEvent(), onChanged: createEvent(), onImportEnded: createEvent() },
     action: { setIcon: async () => {} },
+    webNavigation: { onCommitted: createEvent() },
     sidePanel: {
       setPanelBehavior: async () => {},
       open: async ({ windowId }) => { calls.push(['open', windowId]); },
