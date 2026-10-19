@@ -73,7 +73,6 @@ export function TreeNodeContent({
   onRenameTitleChange,
 }: TreeNodeContentProps) {
   const {
-    expandedIds,
     toggleExpand,
     expandAllUnder,
     collapseAllUnder,
@@ -84,15 +83,16 @@ export function TreeNodeContent({
     openAddBookmarkDialog,
     undoDeleteBookmark,
     openMoveDialog,
-    multiSelectMode,
-    selectedIds,
     toggleSelect,
     rangeSelect,
     clearSelection,
     openBatchMoveDialog,
     confirmBatchDelete,
     enterMultiSelectMode,
-  } = useBookmarkStore();
+  } = useBookmarkStore.getState();
+  const expandedIds = useBookmarkStore(s => s.expandedIds);
+  const multiSelectMode = useBookmarkStore(s => s.multiSelectMode);
+  const selectedIds = useBookmarkStore(s => s.selectedIds);
   const bookmarkInsertPosition = useSettings((s) => s.bookmarkInsertPosition);
 
   const { node, depth, isFolder: folder } = item;

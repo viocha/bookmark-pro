@@ -16,7 +16,8 @@ interface PendingLocateRequest {
 }
 
 export default function App() {
-  const { loadTree, searchResults } = useBookmarkStore();
+  const loadTree = useBookmarkStore(s => s.loadTree);
+  const searchResults = useBookmarkStore(s => s.searchResults);
 
   useEffect(() => {
     const init = async () => {

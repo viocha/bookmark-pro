@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Empty, EmptyDescription } from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import {
-  getBookmarkPath,
   isProtectedNode,
   getAllUrls,
 } from '@/lib/bookmark-api';
@@ -34,40 +32,62 @@ import {
 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { BookmarkText } from '@/components/BookmarkText';
+import { buildBookmarkFolderPaths, SEARCH_PAGE_SIZE } from '@/lib/bookmark-search';
 
 export function SearchResults() {
-  const store = useBookmarkStore();
+  const searchResults = useBookmarkStore(s => s.searchResults);
+  const hasQuery = useBookmarkStore(s => Boolean(s.searchQuery.trim()));
+  const tree = useBookmarkStore(s => s.tree);
   const {
-    searchResults,
-    isSearching,
-    searchQuery,
     openEditDialog,
     deleteNode,
     undoDeleteBookmark,
     openMoveDialog,
     openCreateFolderDialog,
-  } = store;
+  } = useBookmarkStore.getState();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState({ results: searchResults, limit: SEARCH_PAGE_SIZE });
+  const limit = page.results === searchResults ? page.limit : SEARCH_PAGE_SIZE;
+  const { folders, bookmarks, ordered } = useMemo(() => {
+    const folders = (searchResults ?? []).filter(n => !n.url);
+    const bookmarks = (searchResults ?? []).filter(n => n.url);
+    return { folders, bookmarks, ordered: [...folders, ...bookmarks] };
+  }, [searchResults]);
+  const folderPaths = useMemo(() => buildBookmarkFolderPaths(tree), [tree]);
+  const visible = ordered.slice(0, limit);
 
-  if (isSearching) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner aria-label="搜索中" />
-      </div>
-    );
-  }
+  useLayoutEffect(() => {
+    const viewport = rootRef.current?.querySelector('[data-slot="scroll-area-viewport"]');
+    if (viewport) viewport.scrollTop = 0;
+  }, [searchResults]);
+
+  useEffect(() => {
+    if (visible.length >= ordered.length) return;
+    const viewport = rootRef.current?.querySelector('[data-slot="scroll-area-viewport"]');
+    const sentinel = sentinelRef.current;
+    if (!viewport || !sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setPage(current => ({
+          results: searchResults,
+          limit: (current.results === searchResults ? current.limit : SEARCH_PAGE_SIZE) + SEARCH_PAGE_SIZE,
+        }));
+      }
+    }, { root: viewport, rootMargin: '200px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [searchResults, visible.length, ordered.length]);
 
   if (!searchResults || searchResults.length === 0) {
     return (
       <Empty className="h-full">
         <EmptyDescription>
-          {searchQuery ? '没有找到匹配的结果' : '请输入搜索词'}
+          {hasQuery ? '没有找到匹配的结果' : '请输入搜索词'}
         </EmptyDescription>
       </Empty>
     );
   }
-
-  const folders = searchResults.filter((n) => !n.url);
-  const bookmarks = searchResults.filter((n) => n.url);
 
   const handleDeleteFolder = (node: chrome.bookmarks.BookmarkTreeNode) => {
     const deepClone = (
@@ -117,16 +137,17 @@ export function SearchResults() {
   };
 
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea ref={rootRef} className="h-full">
       <div className="py-0.5">
         <div className="px-2 py-1 text-[11px] text-muted-foreground">
           找到 {folders.length > 0 ? `${folders.length} 个文件夹、` : ''}
           {bookmarks.length} 个书签
         </div>
-        {folders.map((node) => (
+        {visible.filter(node => !node.url).map((node) => (
           <SearchFolderItem
             key={node.id}
             node={node}
+            path={folderPaths.get(node.parentId ?? '') ?? ''}
             onOpen={() =>
               useBookmarkStore
                 .getState()
@@ -139,16 +160,18 @@ export function SearchResults() {
             onCreateFolder={() => openCreateFolderDialog(node.id)}
           />
         ))}
-        {bookmarks.map((node) => (
+        {visible.filter(node => node.url).map((node) => (
           <SearchResultItem
             key={node.id}
             node={node}
+            path={folderPaths.get(node.parentId ?? '') ?? ''}
             onEdit={() => openEditDialog(node)}
             onMove={() => openMoveDialog(node)}
             onDelete={() => handleDeleteBookmark(node)}
             onLocate={() => useBookmarkStore.getState().locateNode(node.id)}
           />
         ))}
+        {visible.length < ordered.length && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
       </div>
     </ScrollArea>
   );
@@ -156,6 +179,7 @@ export function SearchResults() {
 
 function SearchFolderItem({
   node,
+  path,
   onOpen,
   onLocate,
   onEdit,
@@ -164,6 +188,7 @@ function SearchFolderItem({
   onCreateFolder,
 }: {
   node: chrome.bookmarks.BookmarkTreeNode;
+  path: string;
   onOpen: () => void;
   onLocate: () => void;
   onEdit: () => void;
@@ -171,16 +196,9 @@ function SearchFolderItem({
   onDelete: () => void;
   onCreateFolder: () => void;
 }) {
-  const [path, setPath] = useState('');
   const isProtected = isProtectedNode(node.id);
-  const { addBookmark, openAddBookmarkDialog } = useBookmarkStore();
-  const { bookmarkInsertPosition } = useSettings();
-
-  useEffect(() => {
-    if (node.parentId) {
-      getBookmarkPath(node.parentId).then(setPath);
-    }
-  }, [node.parentId]);
+  const { addBookmark, openAddBookmarkDialog } = useBookmarkStore.getState();
+  const bookmarkInsertPosition = useSettings(s => s.bookmarkInsertPosition);
 
   const titleAttr = [node.title, path ? `📁 ${path}` : '']
     .filter(Boolean)
@@ -308,25 +326,19 @@ function SearchFolderItem({
 
 function SearchResultItem({
   node,
+  path,
   onEdit,
   onMove,
   onDelete,
   onLocate,
 }: {
   node: chrome.bookmarks.BookmarkTreeNode;
+  path: string;
   onEdit: () => void;
   onMove: () => void;
   onDelete: () => void;
   onLocate: () => void;
 }) {
-  const [path, setPath] = useState('');
-
-  useEffect(() => {
-    if (node.parentId) {
-      getBookmarkPath(node.parentId).then(setPath);
-    }
-  }, [node.parentId]);
-
   const handleClick = (e: React.MouseEvent) => {
     if (!node.url) return;
     // Let browser handle modifier clicks natively via <a> href

@@ -125,7 +125,9 @@ function DndTreeNode({
 }
 
 export function BookmarkTree() {
-  const { tree, expandedIds, moveNode, editNode } = useBookmarkStore();
+  const tree = useBookmarkStore(s => s.tree);
+  const expandedIds = useBookmarkStore(s => s.expandedIds);
+  const { moveNode, editNode } = useBookmarkStore.getState();
   const loadTree = useBookmarkStore((s) => s.loadTree);
   const saveTreeState = useSettings((s) => s.saveTreeState);
   const settingsScrollTop = useSettings((s) => s.scrollTop);

@@ -15,6 +15,8 @@ import {
 } from '@/lib/bookmark-api';
 import { useSettings } from '@/hooks/useSettings';
 
+let searchRevision = 0;
+
 interface BookmarkState {
   tree: chrome.bookmarks.BookmarkTreeNode[];
   expandedIds: Set<string>;
@@ -211,23 +213,35 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   setSearchQuery: (query: string) => {
-    set({ searchQuery: query });
+    searchRevision++;
+    set({ searchQuery: query, isSearching: false });
     if (!query.trim()) {
       set({ searchResults: null, isSearching: false });
     }
   },
 
   performSearch: async (query: string) => {
+    if (query.trim() !== get().searchQuery.trim()) return;
+    const revision = ++searchRevision;
     if (!query.trim()) {
       set({ searchResults: null, isSearching: false });
       return;
     }
     set({ isSearching: true });
-    const results = await searchBookmarks(query);
-    set({ searchResults: results, isSearching: false });
+    try {
+      const results = await searchBookmarks(query.trim());
+      if (revision !== searchRevision || get().searchQuery.trim() !== query.trim()) return;
+      set({ searchResults: results, isSearching: false });
+    } catch (error) {
+      if (revision !== searchRevision || get().searchQuery.trim() !== query.trim()) return;
+      set({ isSearching: false });
+      toast.add({ type: 'error', title: '搜索失败' });
+      console.error('[Bookmark Pro] 搜索失败:', error);
+    }
   },
 
   clearSearch: () => {
+    searchRevision++;
     set({ searchQuery: '', searchResults: null, isSearching: false });
   },
 

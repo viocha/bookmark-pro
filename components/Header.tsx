@@ -83,8 +83,8 @@ function ToolbarAction({
 }
 
 export function Header() {
-  const { searchQuery, setSearchQuery, performSearch, clearSearch } =
-    useBookmarkStore();
+  const searchQuery = useBookmarkStore(s => s.searchQuery);
+  const { setSearchQuery, performSearch, clearSearch } = useBookmarkStore.getState();
   const multiSelectMode = useBookmarkStore((s) => s.multiSelectMode);
   const selectedIds = useBookmarkStore((s) => s.selectedIds);
   const enterMultiSelectMode = useBookmarkStore((s) => s.enterMultiSelectMode);
@@ -138,6 +138,7 @@ export function Header() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       performSearch(searchQuery);
     }
     if (e.key === 'Escape') {
@@ -147,12 +148,18 @@ export function Header() {
   };
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!searchQuery.trim() && debounceRef.current) clearTimeout(debounceRef.current);
+  }, [searchQuery]);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (val.trim()) {
-      debounceRef.current = setTimeout(() => performSearch(val), 300);
+      debounceRef.current = setTimeout(() => performSearch(val), 500);
     } else {
       clearSearch();
     }
