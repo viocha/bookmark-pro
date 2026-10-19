@@ -124,7 +124,7 @@ export function SearchResults() {
     deleteNode(node);
     const undoToastId = toast.add({
       title: '已删除书签',
-      description: saved.title || '(无标题)',
+      description: <span className="block truncate">{saved.title || '(无标题)'}</span>,
       actionProps: {
         children: '撤销',
         onClick: () => {

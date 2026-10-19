@@ -1,12 +1,7 @@
 import { useId } from 'react';
 import type { InsertPosition } from '@/hooks/useSettings';
-import {
-  Field,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from '@/components/ui/field';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 export function InsertPositionField({
   label = '插入位置',
@@ -19,27 +14,23 @@ export function InsertPositionField({
 }) {
   const id = useId();
   return (
-    <FieldSet>
-      <FieldLegend variant="label" id={`${id}-label`}>
-        {label}
-      </FieldLegend>
-      <RadioGroup
-        aria-labelledby={`${id}-label`}
-        value={value}
-        onValueChange={(next) => {
+    <Field>
+      <FieldLabel id={id}>{label}</FieldLabel>
+      <ToggleGroup
+        aria-labelledby={id}
+        variant="outline"
+        size="sm"
+        spacing={0}
+        className="w-full"
+        value={[value]}
+        onValueChange={(values) => {
+          const next = values[0];
           if (next === 'top' || next === 'bottom') onChange(next);
         }}
-        className="flex gap-6"
       >
-        <Field orientation="horizontal">
-          <RadioGroupItem id={`${id}-top`} value="top" />
-          <FieldLabel htmlFor={`${id}-top`}>顶部</FieldLabel>
-        </Field>
-        <Field orientation="horizontal">
-          <RadioGroupItem id={`${id}-bottom`} value="bottom" />
-          <FieldLabel htmlFor={`${id}-bottom`}>底部</FieldLabel>
-        </Field>
-      </RadioGroup>
-    </FieldSet>
+        <ToggleGroupItem className="flex-1" value="top">顶部</ToggleGroupItem>
+        <ToggleGroupItem className="flex-1" value="bottom">底部</ToggleGroupItem>
+      </ToggleGroup>
+    </Field>
   );
 }

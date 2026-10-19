@@ -21,9 +21,9 @@ import {
   getBookmarkInsertIndex,
   removeBookmarkTree,
   updateBookmark,
-  moveBookmark,
   isProtectedNode,
 } from '@/lib/bookmark-api';
+import { savePopupBookmark } from '@/lib/popup-bookmark';
 import {
   buildFolderTree,
   getAncestorIds,
@@ -82,9 +82,12 @@ export default function App() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [folderId, setFolderId] = useState('1');
+  const [initialFolderId, setInitialFolderId] = useState('1');
   const [folderName, setFolderName] = useState('书签栏');
   const [loading, setLoading] = useState(true);
   const [isNewBookmark, setIsNewBookmark] = useState(false);
+  const [position, setPosition] = useState<InsertPosition>('bottom');
+  const [positionChanged, setPositionChanged] = useState(false);
 
   // Recent folders dropdown
   const [recentFolders, setRecentFolders] = useState<RecentFolder[]>([]);
@@ -129,6 +132,8 @@ export default function App() {
       try {
         // 创建书签前读取持久化的插入位置设置。
         await useSettings.getState().load();
+        const defaultPosition = useSettings.getState().bookmarkInsertPosition;
+        setPosition(defaultPosition);
 
         const [tab] = await chrome.tabs.query({
           active: true,
@@ -161,7 +166,7 @@ export default function App() {
 
           const index = await getBookmarkInsertIndex(
             targetFolderId,
-            useSettings.getState().bookmarkInsertPosition
+            defaultPosition
           );
           bm = await createBookmark(
             targetFolderId,
@@ -185,6 +190,7 @@ export default function App() {
         setTitle(bm.title);
         setUrl(bm.url || tab.url);
         setFolderId(bm.parentId || '1');
+        setInitialFolderId(bm.parentId || '1');
 
         // Resolve folder name
         const parentId = bm.parentId || '1';
@@ -229,6 +235,11 @@ export default function App() {
   }, [dropdownSearch, recentFolders, folderTree]);
 
   // ─── Handlers ───
+  const handlePositionChange = useCallback((next: InsertPosition) => {
+    setPosition(next);
+    setPositionChanged(true);
+  }, []);
+
   const handleSelectFolder = useCallback(async (folder: RecentFolder) => {
     if (!(await folderExists(folder.id))) return;
     setFolderId(folder.id);
@@ -241,40 +252,24 @@ export default function App() {
       if (!bookmarkId) return;
       const targetFolderId = nextFolderId ?? folderId;
       try {
-        // Verify bookmark still exists before saving
-        const [existing] = await chrome.bookmarks
-          .get(bookmarkId)
-          .catch(() => [null]);
-        if (!existing) return;
-
-        const changes: { title?: string; url?: string } = {};
-        if (title !== existing.title) changes.title = title;
-        if (url !== existing.url) changes.url = url;
-        if (Object.keys(changes).length > 0) {
-          await updateBookmark(bookmarkId, changes);
-        }
-        if (targetFolderId && targetFolderId !== existing.parentId) {
-          const index = isNewBookmark
-            ? await getBookmarkInsertIndex(
-                targetFolderId,
-                useSettings.getState().bookmarkInsertPosition
-              )
-            : undefined;
-          await moveBookmark(bookmarkId, { parentId: targetFolderId, index });
-        }
-        if (targetFolderId) {
-          await setLastFolderId(targetFolderId);
-        }
+        await savePopupBookmark({
+          id: bookmarkId,
+          title,
+          url,
+          parentId: targetFolderId,
+          position,
+          reposition: isNewBookmark || positionChanged,
+        });
       } catch (err) {
         console.error('[Bookmark Pro Popup] save error:', err);
       }
     },
-    [bookmarkId, title, url, folderId, isNewBookmark]
+    [bookmarkId, title, url, folderId, position, isNewBookmark, positionChanged]
   );
 
   const saveChanges = useCallback(async () => {
-    await persistBookmarkChanges();
-  }, [persistBookmarkChanges]);
+    await persistBookmarkChanges(view === 'tree' ? selectedId ?? folderId : folderId);
+  }, [persistBookmarkChanges, view, selectedId, folderId]);
 
   const handleDone = useCallback(async () => {
     closingRef.current = true;
@@ -354,6 +349,7 @@ export default function App() {
         editingIdRef.current ||
         createFolderDialogOpenRef.current ||
         dropdownOpenRef.current ||
+        target?.closest('[data-slot="toggle-group"]') ||
         target?.closest('[data-slot="dialog-content"]')
       ) {
         return;
@@ -674,6 +670,9 @@ export default function App() {
             </div>
           </ScrollArea>
         </div>
+        <FieldGroup className="shrink-0 px-3 pt-2">
+          <InsertPositionField value={position} onChange={handlePositionChange} />
+        </FieldGroup>
         <div className="shrink-0 flex items-center gap-2 px-3 py-2">
           <Button
             variant="outline"
@@ -873,6 +872,9 @@ export default function App() {
             </ComboboxContent>
           </Combobox>
         </Field>
+        {(isNewBookmark || folderId !== initialFolderId || positionChanged) && (
+          <InsertPositionField value={position} onChange={handlePositionChange} />
+        )}
       </FieldGroup>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={handleShowTree}>

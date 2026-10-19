@@ -237,7 +237,7 @@ export function TreeNodeContent({
       deleteNode(node);
       const undoToastId = toast.add({
         title: '已删除书签',
-        description: savedNode.title || '(无标题)',
+        description: <span className="block truncate">{savedNode.title || '(无标题)'}</span>,
         actionProps: {
           children: '撤销',
           onClick: () => {
