@@ -297,7 +297,7 @@ function SearchFolderItem({
               </ContextMenuItem>
               <ContextMenuItem onClick={onMove}>
                 <FolderInput />
-                移动到
+                移动
               </ContextMenuItem>
               <ContextMenuItem onClick={onDelete} variant="destructive">
                 <Trash2 />
@@ -420,7 +420,7 @@ function SearchResultItem({
           </ContextMenuItem>
           <ContextMenuItem onClick={onMove}>
             <FolderInput />
-            移动到
+            移动
           </ContextMenuItem>
           <ContextMenuItem onClick={onDelete} variant="destructive">
             <Trash2 />

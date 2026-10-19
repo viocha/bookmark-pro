@@ -375,7 +375,7 @@ export function TreeNodeContent({
         <ContextMenuSeparator />
         <ContextMenuItem onClick={openBatchMoveDialog}>
           <FolderInput />
-          移动到 ({selectedIds.size})
+          移动 ({selectedIds.size})
         </ContextMenuItem>
         <ContextMenuItem onClick={confirmBatchDelete} variant="destructive">
           <Trash2 />
@@ -534,7 +534,7 @@ export function TreeNodeContent({
             </ContextMenuItem>
             <ContextMenuItem onClick={() => openMoveDialog(node)}>
               <FolderInput />
-              移动到
+              移动
             </ContextMenuItem>
             <ContextMenuItem onClick={handleDelete} variant="destructive">
               <Trash2 />
@@ -584,7 +584,7 @@ export function TreeNodeContent({
         </ContextMenuItem>
         <ContextMenuItem onClick={() => openMoveDialog(node)}>
           <FolderInput />
-          移动到
+          移动
         </ContextMenuItem>
         <ContextMenuItem onClick={handleDelete} variant="destructive">
           <Trash2 />
