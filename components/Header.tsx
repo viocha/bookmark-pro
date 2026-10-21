@@ -5,7 +5,6 @@ import { toast } from '@/components/ui/toast';
 import {
   Search,
   X,
-  ArrowDownUp,
   Settings,
   CheckSquare2,
   ExternalLink,
@@ -27,7 +26,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 
 function collectSelectedUrls(): string[] {
@@ -94,7 +92,6 @@ export function Header() {
 
   const [showSearch, setShowSearch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isSorting, setIsSorting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const openSearch = useCallback(() => {
@@ -264,20 +261,6 @@ export function Header() {
               label="多选模式"
               icon={<CheckSquare2 />}
               onClick={enterMultiSelectMode}
-            />
-            <ToolbarAction
-              label="排序：文件夹置前"
-              icon={isSorting ? <Spinner /> : <ArrowDownUp />}
-              disabled={isSorting}
-              onClick={async () => {
-                if (isSorting) return;
-                setIsSorting(true);
-                try {
-                  await useBookmarkStore.getState().sortFoldersFirst();
-                } finally {
-                  setIsSorting(false);
-                }
-              }}
             />
             <ToolbarAction
               label="搜索 (Ctrl+F)"

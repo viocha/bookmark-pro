@@ -558,11 +558,11 @@ export function TreeNodeContent({
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => expandAllUnder(node)}>
           <ChevronsUpDown />
-          递归展开
+          展开全部
         </ContextMenuItem>
         <ContextMenuItem onClick={() => collapseAllUnder(node)}>
           <ChevronsDownUp />
-          递归折叠
+          折叠全部
         </ContextMenuItem>
         {!multiSelectMode && !isProtected && (
           <>

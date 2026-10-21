@@ -1,4 +1,6 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
+import { ArrowDownUp } from 'lucide-react';
+import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import {
   Dialog,
@@ -7,7 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Switch } from '@/components/ui/switch';
 
@@ -49,6 +53,7 @@ function PositionToggle({
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+  const [isSorting, setIsSorting] = useState(false);
   const titleLinesId = useId();
   const showUrlId = useId();
   const {
@@ -107,6 +112,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             value={bookmarkInsertPosition}
             onChange={setBookmarkInsertPosition}
           />
+          <Field>
+            <Button
+              variant="outline"
+              disabled={isSorting}
+              onClick={async () => {
+                if (isSorting) return;
+                setIsSorting(true);
+                try {
+                  await useBookmarkStore.getState().sortFoldersFirst();
+                } finally {
+                  setIsSorting(false);
+                }
+              }}
+            >
+              {isSorting ? <Spinner data-icon="inline-start" /> : <ArrowDownUp data-icon="inline-start" />}
+              规范化排序
+            </Button>
+            <FieldDescription>
+              将所有文件夹置于书签前，同类项目保持现有顺序。
+            </FieldDescription>
+          </Field>
         </FieldGroup>
       </DialogContent>
     </Dialog>
