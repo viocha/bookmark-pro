@@ -6,8 +6,8 @@ import { moveBookmark } from '@/lib/bookmark-api';
 import {
   flattenTree,
   computeDropIndicator,
-  FlattenedNode,
-  DropIndicator,
+  type FlattenedNode,
+  type DropIndicator,
   TREE_INDENT_PX,
   TREE_ICON_ANCHOR_OFFSET_PX,
 } from '@/lib/tree-utils';
@@ -18,15 +18,15 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragStartEvent,
-  DragEndEvent,
-  DragMoveEvent,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragMoveEvent,
   DragOverlay,
   MeasuringStrategy,
   closestCenter,
   useDroppable,
   useDraggable,
-  CollisionDetection,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 
 interface RenderItem {
@@ -244,8 +244,7 @@ export function BookmarkTree() {
   // Build render list with empty folder indicators
   const renderItems = useMemo(() => {
     const result: RenderItem[] = [];
-    for (let i = 0; i < flatItems.length; i++) {
-      const item = flatItems[i];
+    for (const item of flatItems) {
       result.push({ type: 'node', item, key: item.id });
       if (item.isFolder && expandedIds.has(item.id) && item.childCount === 0) {
         result.push({ type: 'empty', depth: item.depth + 1, key: `empty-${item.id}` });

@@ -91,8 +91,8 @@ export function computeDropIndicator(
   const activeIndex = flatItems.findIndex((item) => item.id === activeId);
   if (overIndex === -1 || activeIndex === -1) return null;
 
-  const overItem = flatItems[overIndex];
-  const activeItem = flatItems[activeIndex];
+  const overItem = flatItems[overIndex]!;
+  const activeItem = flatItems[activeIndex]!;
 
   // --- Y-axis zone ---
   const relY = cursorY - overRect.top;
@@ -146,14 +146,14 @@ export function computeDropIndicator(
     // After the overItem in flatItems, skip all deeper items (its visible subtree).
     let lastInSubtreeIndex = overIndex;
     for (let i = overIndex + 1; i < flatItems.length; i++) {
-      if (flatItems[i].depth > overItem.depth) {
+      if (flatItems[i]!.depth > overItem.depth) {
         lastInSubtreeIndex = i;
       } else {
         break;
       }
     }
     // If overItem IS the last in its subtree block or `after` applies to the bottom
-    const lastItem = flatItems[lastInSubtreeIndex];
+    const lastItem = flatItems[lastInSubtreeIndex]!;
     const lastDepth = lastItem.depth;
 
     // Calculate the "desired depth" from relative horizontal movement.
@@ -169,12 +169,10 @@ export function computeDropIndicator(
     // But we cannot go shallower than the depth of the next visible sibling below.
     // Skip the active (dragged) item — it will be moved away, so it shouldn't constrain outdent.
     let nextNonActiveIndex = lastInSubtreeIndex + 1;
-    while (nextNonActiveIndex < flatItems.length && flatItems[nextNonActiveIndex].id === activeId) {
+    while (flatItems[nextNonActiveIndex]?.id === activeId) {
       nextNonActiveIndex++;
     }
-    const nextItemDepth = nextNonActiveIndex < flatItems.length
-      ? flatItems[nextNonActiveIndex].depth
-      : 0;
+    const nextItemDepth = flatItems[nextNonActiveIndex]?.depth ?? 0;
 
     // Only allow outdent when over item is the "bottom" of the subtree visible
     // i.e., there's no next item OR next item is shallower
@@ -219,19 +217,19 @@ export function computeDropIndicator(
   // Keeping 'after overItem' renders the line at the BOTTOM of overItem, which is
   // visually ABOVE the dragged item's ghost slot — letting the user insert
   // before the item's original position.
-  if (nextIdx < flatItems.length && flatItems[nextIdx].id === activeId) {
+  if (flatItems[nextIdx]?.id === activeId) {
     return afterResult;
   }
 
   // Otherwise normalize: 'after overItem' → 'before nextNonActiveItem'
   // so the indicator is consistent regardless of which adjacent item the cursor is over.
   let nextVisibleIdx = nextIdx;
-  while (nextVisibleIdx < flatItems.length && flatItems[nextVisibleIdx].id === activeId) {
+  while (flatItems[nextVisibleIdx]?.id === activeId) {
     nextVisibleIdx++;
   }
   if (nextVisibleIdx < flatItems.length) {
     return {
-      overId: flatItems[nextVisibleIdx].id,
+      overId: flatItems[nextVisibleIdx]!.id,
       zone: 'before',
       depth: afterResult.depth,
       projection: afterResult.projection,
@@ -267,7 +265,7 @@ function findAncestorAtDepth(
   // Walk backward from the item to find its ancestor at targetDepth
   const idx = flatItems.findIndex((n) => n.id === item.id);
   for (let i = idx - 1; i >= 0; i--) {
-    const candidate = flatItems[i];
+    const candidate = flatItems[i]!;
     if (candidate.depth === targetDepth && candidate.depth < item.depth) {
       return candidate;
     }

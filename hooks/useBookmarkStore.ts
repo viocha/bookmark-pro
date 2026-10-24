@@ -280,9 +280,9 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   addBookmark: async (parentId, title, url, position) => {
     // Check if URL already exists globally
-    const globalExisting = await chrome.bookmarks.search({ url });
-    if (globalExisting.length > 0) {
-      return globalExisting[0];
+    const [globalExisting] = await chrome.bookmarks.search({ url });
+    if (globalExisting) {
+      return globalExisting;
     }
     const index = await getBookmarkInsertIndex(parentId, position ?? 'bottom');
     const node = await createBookmark(parentId, title, url, index);
@@ -515,9 +515,9 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     const lo = Math.min(startIdx, endIdx);
     const hi = Math.max(startIdx, endIdx);
     const next = new Set(selectedIds);
-    for (let i = lo; i <= hi; i++) {
-      if (!isProtectedNode(flatIds[i])) {
-        next.add(flatIds[i]);
+    for (const selectedId of flatIds.slice(lo, hi + 1)) {
+      if (!isProtectedNode(selectedId)) {
+        next.add(selectedId);
       }
     }
     set({ selectedIds: next, lastSelectedId: id });

@@ -39,6 +39,7 @@ import {
 } from '@/lib/folder-tree';
 import type { FolderNode } from '@/lib/folder-tree';
 import { Search } from 'lucide-react';
+import { getTruncatedTitleProps } from '@/lib/truncated-title';
 
 export function MoveDialog() {
   const {
@@ -104,7 +105,7 @@ export function MoveDialog() {
       setFolderTree(folders);
 
       // Expand ancestors of the first item's parent
-      const firstNode = moveTargetNodes[0];
+      const firstNode = moveTargetNodes[0]!;
       const parentId = firstNode.parentId ?? '1';
       const ancestors = getAncestorIds(folders, parentId);
       ancestors.add(parentId); // also expand the parent itself
@@ -380,7 +381,7 @@ export function MoveDialog() {
     >
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto">
         <DialogHeader className="pb-0 pr-6 overflow-hidden">
-          <DialogTitle className="truncate min-w-0" title={dialogTitle}>
+          <DialogTitle className="w-fit max-w-full truncate min-w-0" {...getTruncatedTitleProps(dialogTitle)}>
             {dialogTitle}
           </DialogTitle>
           <DialogDescription className="sr-only">

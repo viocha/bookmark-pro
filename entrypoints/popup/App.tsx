@@ -51,6 +51,7 @@ import {
 import { useSettings, type InsertPosition } from '@/hooks/useSettings';
 import { Folder, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTruncatedTitleProps } from '@/lib/truncated-title';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { InsertPositionField } from '@/components/InsertPositionField';
 import {
@@ -150,11 +151,11 @@ export default function App() {
           return;
         }
 
-        const results = await chrome.bookmarks.search({ url: tab.url });
+        const [existingBookmark] = await chrome.bookmarks.search({ url: tab.url });
 
         let bm: chrome.bookmarks.BookmarkTreeNode;
 
-        if (results.length === 0) {
+        if (!existingBookmark) {
           // Not bookmarked → quick-add to last-used folder
           let targetFolderId = '1';
           try {
@@ -183,7 +184,7 @@ export default function App() {
             /* ignore */
           }
         } else {
-          bm = results[0];
+          bm = existingBookmark;
         }
 
         setBookmarkId(bm.id);
@@ -838,7 +839,9 @@ export default function App() {
               }
             >
               <Folder data-icon="inline-start" />
-              <span className="flex-1 truncate text-left">{folderName}</span>
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block w-fit max-w-full truncate" {...getTruncatedTitleProps(folderName)}>{folderName}</span>
+              </span>
             </ComboboxTrigger>
             <ComboboxContent className="flex h-72 min-w-0 flex-col">
               <ComboboxInput
@@ -858,9 +861,9 @@ export default function App() {
                     <ComboboxItem key={folder.id} value={folder}>
                       <Folder />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate">{folder.title}</div>
+                        <div className="w-fit max-w-full truncate" {...getTruncatedTitleProps(folder.title)}>{folder.title}</div>
                         {folder.path && (
-                          <div className="truncate text-xs text-muted-foreground">
+                          <div className="w-fit max-w-full truncate text-xs text-muted-foreground" {...getTruncatedTitleProps(folder.path)}>
                             {folder.path}
                           </div>
                         )}

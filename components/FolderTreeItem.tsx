@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTruncatedTitleProps } from '@/lib/truncated-title';
 
 export function FolderTreeItem({
   node,
@@ -167,7 +168,7 @@ export function FolderTreeItem({
         />
       ) : (
         <>
-          <span className="truncate min-w-0 ml-0.5">{node.title}</span>
+          <span className="w-fit max-w-full truncate min-w-0 ml-0.5" {...getTruncatedTitleProps(node.title)}>{node.title}</span>
           {node.childCount > 0 && (
             <span className="ml-auto shrink-0 text-muted-foreground">
               {node.childCount}

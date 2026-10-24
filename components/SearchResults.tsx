@@ -33,6 +33,7 @@ import {
 import { useSettings } from '@/hooks/useSettings';
 import { BookmarkText } from '@/components/BookmarkText';
 import { buildBookmarkFolderPaths, SEARCH_PAGE_SIZE } from '@/lib/bookmark-search';
+import { getTruncatedTitleProps } from '@/lib/truncated-title';
 
 export function SearchResults() {
   const searchResults = useBookmarkStore(s => s.searchResults);
@@ -68,7 +69,7 @@ export function SearchResults() {
     const sentinel = sentinelRef.current;
     if (!viewport || !sentinel) return;
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
+      if (entry?.isIntersecting) {
         setPage(current => ({
           results: searchResults,
           limit: (current.results === searchResults ? current.limit : SEARCH_PAGE_SIZE) + SEARCH_PAGE_SIZE,
@@ -200,7 +201,7 @@ function SearchFolderItem({
   const { addBookmark, openAddBookmarkDialog } = useBookmarkStore.getState();
   const bookmarkInsertPosition = useSettings(s => s.bookmarkInsertPosition);
 
-  const titleAttr = [node.title, path ? `📁 ${path}` : '']
+  const titleAttr = [node.title, path]
     .filter(Boolean)
     .join('\n');
 
@@ -220,11 +221,11 @@ function SearchFolderItem({
         tab = fallbackTabs[0];
       }
       if (tab?.url && tab?.title) {
-        const existing = await chrome.bookmarks.search({ url: tab.url });
-        if (existing.length > 0) {
+        const [existing] = await chrome.bookmarks.search({ url: tab.url });
+        if (existing) {
           toast.add({
             title: '书签已存在',
-            description: existing[0].title || '(无标题)',
+            description: existing.title || '(无标题)',
             timeout: 3000,
           });
           return;
@@ -259,16 +260,17 @@ function SearchFolderItem({
     <ContextMenu>
       <ContextMenuTrigger
         className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
-        title={titleAttr}
         onClick={onOpen}
       >
         <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
           <Folder className="size-3.5 text-yellow-600" />
         </span>
         <div className="flex-1 min-w-0">
-          <div className="truncate">{node.title || '(无标题)'}</div>
+          <div className="w-fit max-w-full truncate" {...getTruncatedTitleProps(titleAttr)}>
+            {node.title || '(无标题)'}
+          </div>
           {path && (
-            <div className="truncate text-[10px] text-muted-foreground">
+            <div className="w-fit max-w-full truncate text-[10px] text-muted-foreground" {...getTruncatedTitleProps(titleAttr)}>
               {path}
             </div>
           )}
@@ -367,7 +369,7 @@ function SearchResultItem({
     }
   };
 
-  const titleAttr = [node.title, node.url, path ? `📁 ${path}` : '']
+  const titleAttr = [node.title, node.url, path]
     .filter(Boolean)
     .join('\n');
 
@@ -378,7 +380,6 @@ function SearchResultItem({
           <a
             href={node.url}
             className="flex items-start py-1 h-auto min-h-[28px] px-2 cursor-pointer select-none rounded-md transition-colors hover:bg-accent/60 active:bg-accent data-[state=open]:bg-accent/60 text-xs gap-1 overflow-hidden"
-            title={titleAttr}
             onClick={handleClick}
           >
             <span className="flex items-center justify-center size-4 shrink-0 mt-0.5">
@@ -397,9 +398,9 @@ function SearchResultItem({
               <FileText className="size-3.5 text-muted-foreground hidden" />
             </span>
             <div className="flex-1 min-w-0">
-              <BookmarkText title={node.title} url={node.url} />
+              <BookmarkText title={node.title} url={node.url} tooltip={titleAttr} />
               {path && (
-                <div className="truncate text-[10px] text-muted-foreground">
+                <div className="w-fit max-w-full truncate text-[10px] text-muted-foreground" {...getTruncatedTitleProps(titleAttr)}>
                   {path}
                 </div>
               )}

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { FlattenedNode } from '@/lib/tree-utils';
+import type { FlattenedNode } from '@/lib/tree-utils';
 import { useBookmarkStore } from '@/hooks/useBookmarkStore';
 import { useSettings } from '@/hooks/useSettings';
 import {
@@ -37,6 +37,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTruncatedTitleProps } from '@/lib/truncated-title';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BookmarkText } from '@/components/BookmarkText';
@@ -272,10 +273,10 @@ export function TreeNodeContent({
       }
       if (tab?.url && tab?.title) {
         // Check if URL already exists globally
-        const existing = await chrome.bookmarks.search({ url: tab.url });
-        if (existing.length > 0) {
+        const [existing] = await chrome.bookmarks.search({ url: tab.url });
+        if (existing) {
           suppressCloseAutoFocusRef.current = true;
-          openEditDialog(existing[0]);
+          openEditDialog(existing);
           return;
         }
         suppressCloseAutoFocusRef.current = true;
@@ -352,7 +353,6 @@ export function TreeNodeContent({
 
   const indent = depth * 14;
 
-  const titleAttr = folder ? node.title : `${node.title}\n${node.url ?? ''}`;
 
   // Show batch context menu when in multi-select mode with multiple selected items and this item is selected
   const showBatchMenu = multiSelectMode && isSelected && hasMultiSelection;
@@ -476,7 +476,9 @@ export function TreeNodeContent({
       ) : (
         <>
           {folder ? (
-            <span className="truncate min-w-0 ml-0.5">{node.title || '(无标题)'}</span>
+            <span className="w-fit max-w-full truncate min-w-0 ml-0.5" {...getTruncatedTitleProps(node.title || '(无标题)')}>
+              {node.title || '(无标题)'}
+            </span>
           ) : (
             <BookmarkText title={node.title} url={node.url} />
           )}
@@ -639,7 +641,6 @@ export function TreeNodeContent({
     return (
       <div
         ref={setNodeRef}
-        title={titleAttr}
         className={triggerClassName}
         {...triggerDataProps}
       >
@@ -672,7 +673,6 @@ export function TreeNodeContent({
             <a
               href={node.url}
               ref={setNodeRef}
-              title={titleAttr}
               className={triggerClassName}
               onClick={handleClick}
               {...triggerDataProps}
@@ -684,7 +684,6 @@ export function TreeNodeContent({
           ) : (
             <div
               ref={setNodeRef}
-              title={titleAttr}
               className={triggerClassName}
               onClick={handleClick}
               {...triggerDataProps}

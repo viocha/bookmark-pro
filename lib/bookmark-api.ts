@@ -91,9 +91,9 @@ export async function normalizeFolderChildren(parentId: string): Promise<boolean
   const sorted = [...folders, ...bookmarks];
   let current = [...children];
   let changed = false;
-  for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].id !== current[i]?.id) {
-      await chrome.bookmarks.move(sorted[i].id, { parentId, index: i });
+  for (const [i, node] of sorted.entries()) {
+    if (node.id !== current[i]?.id) {
+      await chrome.bookmarks.move(node.id, { parentId, index: i });
       current = await chrome.bookmarks.getChildren(parentId);
       changed = true;
     }
