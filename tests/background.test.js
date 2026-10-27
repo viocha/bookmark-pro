@@ -10,23 +10,24 @@ afterAll(() => {
 });
 
 function createEvent() {
-  let listener;
+  const listeners = [];
   return {
-    addListener(callback) { listener = callback; },
-    emit(...args) { return listener?.(...args); },
+    addListener(callback) { listeners.push(callback); },
+    emit(...args) { return Promise.all(listeners.map(listener => listener(...args))); },
   };
 }
 
 function createBackground() {
   let restore;
   let stored = [];
+  const localData = {};
   const calls = [];
   const opened = createEvent();
   const closed = createEvent();
   const command = createEvent();
   globalThis.chrome = {
     tabs: { get: async () => ({}), query: async () => [], onCreated: createEvent(), onActivated: createEvent(), onUpdated: createEvent(), onRemoved: createEvent() },
-    bookmarks: { search: async () => [], onCreated: createEvent(), onRemoved: createEvent(), onChanged: createEvent(), onImportEnded: createEvent() },
+    bookmarks: { get: async id => [{ id, url: 'https://example.com' }], search: async () => [], onCreated: createEvent(), onMoved: createEvent(), onRemoved: createEvent(), onChanged: createEvent(), onImportEnded: createEvent() },
     action: { setIcon: async () => {} },
     webNavigation: { onCommitted: createEvent() },
     sidePanel: {
@@ -36,7 +37,9 @@ function createBackground() {
       onOpened: opened,
       onClosed: closed,
     },
-    storage: { session: {
+    storage: { local: {
+      set: async data => { Object.assign(localData, data); },
+    }, session: {
       get: () => new Promise(resolve => { restore = resolve; }),
       set: async (data) => { stored = data.sidepanel_open_windows; },
     } },
@@ -49,8 +52,21 @@ function createBackground() {
   return { calls, opened, closed, command, connect: chrome.runtime.onConnect, restore: async (ids) => {
     restore({ sidepanel_open_windows: ids });
     await Promise.resolve();
-  }, getStored: () => stored };
+  }, getStored: () => stored, getLastFolder: () => localData['bookmark-pro-last-folder'] };
 }
+
+test('后台注册全局书签位置监听，新增和跨目录移动持久化默认位置', async () => {
+  const background = createBackground();
+  await background.restore([]);
+  await chrome.bookmarks.onCreated.emit('bookmark', {
+    id: 'bookmark', parentId: 'browser-folder', url: 'https://example.com',
+  });
+  expect(background.getLastFolder()).toBe('browser-folder');
+  await chrome.bookmarks.onMoved.emit('bookmark', {
+    parentId: 'chosen-folder', oldParentId: 'browser-folder', index: 0, oldIndex: 0,
+  });
+  expect(background.getLastFolder()).toBe('chosen-folder');
+});
 
 test('后台冷启动时首次快捷键同步打开侧栏，恢复关闭状态后不反向关闭', async () => {
   const background = createBackground();

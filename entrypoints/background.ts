@@ -1,7 +1,9 @@
 import { registerBookmarkActionIcon } from '@/lib/bookmark-action-icon';
+import { registerBookmarkFolderTracking } from '@/lib/bookmark-folder-tracking';
 
 export default defineBackground(() => {
   registerBookmarkActionIcon();
+  registerBookmarkFolderTracking();
   // ── Disable side panel opening on action click so popup works ──
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 

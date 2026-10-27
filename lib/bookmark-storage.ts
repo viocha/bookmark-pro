@@ -25,8 +25,11 @@ export async function getLastFolderId(): Promise<string> {
 }
 
 /** Save last-used folder ID */
-export async function setLastFolderId(folderId: string): Promise<void> {
-  await chrome.storage.local.set({ [LAST_FOLDER_KEY]: folderId });
+export async function setLastFolderId(
+  folderId: string,
+  storage = chrome.storage.local,
+): Promise<void> {
+  await storage.set({ [LAST_FOLDER_KEY]: folderId });
 }
 
 /** Get recent folders list */

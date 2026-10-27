@@ -1,5 +1,4 @@
 import { getBookmarkInsertIndex, moveBookmark, updateBookmark } from './bookmark-api';
-import { setLastFolderId } from './bookmark-storage';
 import type { InsertPosition } from '@/hooks/useSettings';
 
 /** 保存 Popup 编辑；切换文件夹或明确选择位置时应用顶部、底部排序。 */
@@ -30,5 +29,4 @@ export async function savePopupBookmark({
     const index = await getBookmarkInsertIndex(parentId, position);
     await moveBookmark(id, { parentId, index });
   }
-  await setLastFolderId(parentId);
 }

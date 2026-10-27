@@ -9,7 +9,6 @@ import {
 import {
   getLastFolderId,
   getRecentBookmarkFolders,
-  setLastFolderId,
   buildFolderPath,
   folderExists,
   MAX_FOLDER_OPTIONS,
@@ -176,13 +175,6 @@ export default function App() {
             index
           );
           setIsNewBookmark(true);
-
-          // Save as last used folder
-          try {
-            await setLastFolderId(targetFolderId);
-          } catch {
-            /* ignore */
-          }
         } else {
           bm = existingBookmark;
         }

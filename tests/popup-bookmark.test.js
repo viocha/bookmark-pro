@@ -42,15 +42,17 @@ for (const position of ['top', 'bottom']) {
     const { save, moves, stored } = setup();
     await save({ parentId: 'target', position });
     expect(moves).toEqual([{ id: 'bookmark', destination: { parentId: 'target', index: position === 'top' ? 1 : undefined } }]);
-    expect(stored).toEqual([{ 'bookmark-pro-last-folder': 'target' }]);
+    // 最近收藏位置统一由后台的浏览器书签事件更新。
+    expect(stored).toEqual([]);
   });
 }
 
 test('仅修改名称和网址时保持现有排序', async () => {
-  const { save, moves, updates } = setup();
+  const { save, moves, updates, stored } = setup();
   await save({ title: '新名称', url: 'https://new.example.com' });
   expect(updates).toEqual([{ id: 'bookmark', changes: { title: '新名称', url: 'https://new.example.com' } }]);
   expect(moves).toEqual([]);
+  expect(stored).toEqual([]);
 });
 
 test('在更多面板选择原文件夹并明确选择底部时可以重新排序', async () => {
