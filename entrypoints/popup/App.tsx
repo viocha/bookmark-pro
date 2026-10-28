@@ -455,7 +455,9 @@ export default function App() {
     const tree = await getBookmarkTree();
     const root = tree[0];
     if (!root) return;
-    setFolderTree(buildFolderTree(root));
+    const folders = buildFolderTree(root);
+    setFolderTree(folders);
+    return folders;
   }, []);
 
   const handleCreateFolder = useCallback(
@@ -481,9 +483,12 @@ export default function App() {
         undefined,
         insertIndex
       );
-      setExpandedIds((prev) => new Set([...prev, createFolderParentId!]));
-      await refreshTree();
+      const updatedTree = await refreshTree();
+      const ancestors = getAncestorIds(updatedTree ?? [], result.id);
+      setExpandedIds((prev) => new Set([...prev, ...ancestors, createFolderParentId]));
+      setTreeSearch('');
       setSelectedId(result.id);
+      setAutoRevealTargetId(result.id);
     } catch (err) {
       console.error('[Bookmark Pro Popup] create folder error:', err);
     }
