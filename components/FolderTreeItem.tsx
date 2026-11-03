@@ -163,7 +163,7 @@ export function FolderTreeItem({
             }
           }}
           onBlur={handleBlur}
-          className="h-5 text-xs px-1 py-0 ml-0.5 flex-1 min-w-0"
+          className="h-5 rounded-[4px] text-xs px-1 py-0 ml-0.5 flex-1 min-w-0"
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
