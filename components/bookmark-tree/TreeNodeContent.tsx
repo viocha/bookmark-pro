@@ -391,17 +391,17 @@ export function TreeNodeContent({
       )}
       {multiSelectMode && (
         <span className="flex items-center justify-center size-4 shrink-0">
-          {!isProtected && (
-            <Checkbox
-              checked={isSelected}
-              aria-label={`选择 ${node.title || '(无标题)'}`}
-              onClick={(e) => e.stopPropagation()}
-              onCheckedChange={() => toggleSelect(node.id)}
-            />
-          )}
+          <Checkbox
+            className="after:pointer-events-none"
+            checked={isSelected}
+            disabled={isProtected}
+            aria-label={`选择 ${node.title || '(无标题)'}`}
+            onClick={(e) => e.stopPropagation()}
+            onCheckedChange={() => toggleSelect(node.id)}
+          />
         </span>
       )}
-      <span className="flex items-center justify-center h-4 w-6 shrink-0 ml-0.5">
+      <span className="flex items-center justify-center h-4 w-6 shrink-0">
         {folder ? (
           <Button
             variant="tree"
