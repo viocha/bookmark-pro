@@ -22,6 +22,7 @@ export function EditDialog() {
     closeEditDialog,
     finishCloseEditDialog,
     editNode,
+    deleteNode,
   } = useBookmarkStore();
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -50,6 +51,12 @@ export function EditDialog() {
       e.preventDefault();
       handleSave();
     }
+  };
+
+  const handleDelete = async () => {
+    if (!editingNode || isFolder(editingNode)) return;
+    await deleteNode(editingNode);
+    closeEditDialog();
   };
 
   const folder = editingNode ? isFolder(editingNode) : false;
@@ -100,9 +107,16 @@ export function EditDialog() {
           )}
         </FieldGroup>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={closeEditDialog}>
-            取消
-          </Button>
+          {!folder && (
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              删除
+            </Button>
+          )}
+          {folder && (
+            <Button variant="outline" size="sm" onClick={closeEditDialog}>
+              取消
+            </Button>
+          )}
           <Button size="sm" onClick={handleSave}>
             保存
           </Button>

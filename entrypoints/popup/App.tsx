@@ -23,6 +23,7 @@ import {
   isProtectedNode,
 } from '@/lib/bookmark-api';
 import { savePopupBookmark } from '@/lib/popup-bookmark';
+import { focusBookmarkTitle } from '@/lib/bookmark-form-focus';
 import {
   buildFolderTree,
   getAncestorIds,
@@ -86,6 +87,7 @@ export default function App() {
   const [folderName, setFolderName] = useState('书签栏');
   const [loading, setLoading] = useState(true);
   const [isNewBookmark, setIsNewBookmark] = useState(false);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const [position, setPosition] = useState<InsertPosition>('bottom');
   const [positionChanged, setPositionChanged] = useState(false);
 
@@ -98,6 +100,10 @@ export default function App() {
 
   // Tree view (expanded "更多")
   const [view, setView] = useState<View>('compact');
+  useLayoutEffect(() => {
+    if (loading || view !== 'compact') return;
+    focusBookmarkTitle(titleInputRef.current, null);
+  }, [loading, view]);
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -692,7 +698,7 @@ export default function App() {
           </Button>
           <div className="flex-1" />
           <Button variant="destructive" size="sm" onClick={handleRemove}>
-            移除
+            删除
           </Button>
           <Button
             size="sm"
@@ -777,6 +783,7 @@ export default function App() {
           <FieldLabel htmlFor="popup-title">名称</FieldLabel>
           <ScrollableTextarea
             id="popup-title"
+            ref={titleInputRef}
             rows={2}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -891,7 +898,7 @@ export default function App() {
         </Button>
         <div className="flex-1" />
         <Button variant="destructive" size="sm" onClick={handleRemove}>
-          移除
+          删除
         </Button>
         <Button size="sm" onClick={handleDone}>
           完成

@@ -94,7 +94,7 @@ export function AddBookmarkDialog() {
       }}
     >
       <DialogContent
-        initialFocus={() => focusBookmarkTitle(titleInputRef.current, urlInputRef.current, { selectTitle: true })}
+        initialFocus={() => focusBookmarkTitle(titleInputRef.current, urlInputRef.current)}
       >
         <DialogHeader>
           <DialogTitle>已添加书签</DialogTitle>
@@ -122,7 +122,7 @@ export function AddBookmarkDialog() {
         </FieldGroup>
         <DialogFooter>
           <Button variant="destructive" size="sm" onClick={handleRemove}>
-            移除
+            删除
           </Button>
           <Button size="sm" onClick={handleDone}>
             完成

@@ -19,15 +19,14 @@ export function resetBookmarkFields(
   }
 }
 
-/** 从开头显示文本；仅在明确需要替换默认名称的新建流程中全选。 */
+/** 聚焦名称并将光标和滚动位置保持在文本开头。 */
 export function focusBookmarkTitle(
   title: HTMLTextAreaElement | null,
   url: HTMLTextAreaElement | null,
-  { selectTitle = false }: { selectTitle?: boolean } = {},
 ) {
   if (title) {
     title.focus({ preventScroll: true });
-    title.setSelectionRange(0, selectTitle ? title.value.length : 0, 'backward');
+    title.setSelectionRange(0, 0);
     resetScroll(title);
   }
   if (url) {
