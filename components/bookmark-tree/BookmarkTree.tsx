@@ -29,13 +29,6 @@ import {
   type CollisionDetection,
 } from '@dnd-kit/core';
 
-interface RenderItem {
-  type: 'node' | 'empty';
-  item?: FlattenedNode;
-  depth?: number;
-  key: string;
-}
-
 // TreeNode with dnd-kit draggable + droppable (no sortable transforms)
 function DndTreeNode({
   item,
@@ -230,18 +223,6 @@ export function BookmarkTree() {
 
   // Flat list of IDs for Shift+Click range selection
   const flatIds = useMemo(() => flatItems.map((item) => item.id), [flatItems]);
-
-  // Build render list with empty folder indicators
-  const renderItems = useMemo(() => {
-    const result: RenderItem[] = [];
-    for (const item of flatItems) {
-      result.push({ type: 'node', item, key: item.id });
-      if (item.isFolder && expandedIds.has(item.id) && item.childCount === 0) {
-        result.push({ type: 'empty', depth: item.depth + 1, key: `empty-${item.id}` });
-      }
-    }
-    return result;
-  }, [flatItems, expandedIds]);
 
   const activeItem = useMemo(
     () => flatItems.find((item) => item.id === activeId) ?? null,
@@ -459,34 +440,21 @@ export function BookmarkTree() {
             },
           }}
         >
-          {renderItems.map((ri) => {
-            if (ri.type === 'empty') {
-              return (
-                <div
-                  key={ri.key}
-                  className="text-[11px] text-muted-foreground h-6 flex items-center"
-                  style={{ paddingLeft: `${(ri.depth ?? 1) * 14 + 24}px` }}
-                >
-                  (空)
-                </div>
-              );
-            }
-            return (
-              <DndTreeNode
-                key={ri.key}
-                item={ri.item!}
-                isDragging={ri.item!.id === activeId}
-                dropIndicator={activeId ? dropIndicator : null}
-                flatIds={flatIds}
-                renamingId={renamingId}
-                renamingTitle={renamingTitle}
-                onRenameStart={handleRenameStart}
-                onRenameCommit={handleRenameCommit}
-                onRenameCancel={handleRenameCancel}
-                onRenameTitleChange={setRenamingTitle}
-              />
-            );
-          })}
+          {flatItems.map((item) => (
+            <DndTreeNode
+              key={item.id}
+              item={item}
+              isDragging={item.id === activeId}
+              dropIndicator={activeId ? dropIndicator : null}
+              flatIds={flatIds}
+              renamingId={renamingId}
+              renamingTitle={renamingTitle}
+              onRenameStart={handleRenameStart}
+              onRenameCommit={handleRenameCommit}
+              onRenameCancel={handleRenameCancel}
+              onRenameTitleChange={setRenamingTitle}
+            />
+          ))}
 
           <DragOverlay dropAnimation={null}>
             {activeItem ? (
