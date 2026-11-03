@@ -19,7 +19,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group';
-import { Separator } from '@/components/ui/separator';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import {
   Tooltip,
@@ -52,13 +51,11 @@ function ToolbarAction({
   icon,
   onClick,
   disabled = false,
-  destructive = false,
 }: {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  destructive?: boolean;
 }) {
   return (
     <Tooltip>
@@ -68,7 +65,7 @@ function ToolbarAction({
             aria-label={label}
             onClick={onClick}
             disabled={disabled}
-            variant={destructive ? 'destructive' : 'ghost'}
+            variant="ghost"
             size="icon-sm"
           >
             {icon}
@@ -214,9 +211,7 @@ export function Header() {
           icon={<Trash2 />}
           onClick={confirmBatchDelete}
           disabled={selectedIds.size === 0}
-          destructive
         />
-        <Separator orientation="vertical" className="mx-1 h-4" />
         <ToolbarAction
           label="退出多选"
           icon={<X />}

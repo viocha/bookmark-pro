@@ -16,7 +16,7 @@ export function buildFolderTree(node: chrome.bookmarks.BookmarkTreeNode): Folder
     .filter((c) => isFolder(c))
     .map((c) => ({
       id: c.id,
-      title: c.title || (isProtectedNode(c.id) ? ({ '1': '书签栏', '2': '其他书签', '3': '移动设备书签' }[c.id] ?? c.id) : '(无标题)'),
+      title: c.title || (isProtectedNode(c) ? ({ '1': '书签栏', '2': '其他书签', '3': '移动设备书签' }[c.id] ?? c.id) : '(无标题)'),
       children: buildFolderTree(c),
       parentId: c.parentId,
       childCount: c.children?.length ?? 0,

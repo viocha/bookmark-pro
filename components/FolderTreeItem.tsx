@@ -10,10 +10,9 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   ChevronRight,
-  FolderOpen,
-  Folder,
   FolderPlus,
   Pencil,
   Trash2,
@@ -63,7 +62,7 @@ export function FolderTreeItem({
   const isDisabled = disabledIds.has(node.id);
   const hasChildren = node.children.length > 0;
   const isEditing = editingId === node.id;
-  const isProtected = isProtectedNode(node.id);
+  const isProtected = isProtectedNode(node);
   const [isContextActive, setContextActive] = useState(false);
   const contextOpenRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,28 +121,29 @@ export function FolderTreeItem({
         }
       }}
     >
-      <span
-        className="flex items-center justify-center size-4 shrink-0"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (hasChildren && !isEditing) onToggle(node.id);
-        }}
-      >
+      <span className="flex items-center justify-center size-6 shrink-0">
         {hasChildren ? (
-          <ChevronRight
-            className={cn(
-              'size-3 text-muted-foreground transition-transform duration-200',
-              expanded && 'rotate-90'
-            )}
-          />
+          <Button
+            variant="tree"
+            size="tree"
+            aria-label={`${expanded ? '折叠' : '展开'} ${node.title}`}
+            aria-expanded={expanded}
+            disabled={isDisabled || isEditing}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(node.id);
+            }}
+          >
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground transition-transform duration-200',
+                expanded && 'rotate-90'
+              )}
+            />
+          </Button>
         ) : null}
-      </span>
-      <span className="flex items-center justify-center size-4 shrink-0">
-        {expanded ? (
-          <FolderOpen className="size-3.5 text-yellow-600" />
-        ) : (
-          <Folder className="size-3.5 text-yellow-600" />
-        )}
       </span>
       {isEditing ? (
         <Input

@@ -11,6 +11,7 @@ import {
   searchBookmarks,
   isFolder,
   isProtectedNode,
+  getProtectedNodeIds,
   normalizeFolderChildren,
 } from '@/lib/bookmark-api';
 import { useSettings } from '@/hooks/useSettings';
@@ -456,6 +457,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   openMoveDialog: (node) => {
+    if (isProtectedNode(node)) return;
     set({
       moveTargetNode: node,
       moveTargetNodes: [node],
@@ -487,7 +489,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   toggleSelect: (id: string) => {
     // Prevent selecting protected/root nodes
-    if (isProtectedNode(id)) return;
+    if (getProtectedNodeIds(get().tree).has(id)) return;
     const { selectedIds } = get();
     const next = new Set(selectedIds);
     if (next.has(id)) {
@@ -499,16 +501,16 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   rangeSelect: (id: string, flatIds: string[]) => {
-    const { lastSelectedId, selectedIds } = get();
+    const { lastSelectedId, selectedIds, tree } = get();
+    const protectedIds = getProtectedNodeIds(tree);
+    if (protectedIds.has(id)) return;
     if (!lastSelectedId) {
-      if (isProtectedNode(id)) return;
       set({ selectedIds: new Set([id]), lastSelectedId: id });
       return;
     }
     const startIdx = flatIds.indexOf(lastSelectedId);
     const endIdx = flatIds.indexOf(id);
     if (startIdx === -1 || endIdx === -1) {
-      if (isProtectedNode(id)) return;
       set({ selectedIds: new Set([id]), lastSelectedId: id });
       return;
     }
@@ -516,7 +518,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     const hi = Math.max(startIdx, endIdx);
     const next = new Set(selectedIds);
     for (const selectedId of flatIds.slice(lo, hi + 1)) {
-      if (!isProtectedNode(selectedId)) {
+      if (!protectedIds.has(selectedId)) {
         next.add(selectedId);
       }
     }
@@ -533,10 +535,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // Collect selected nodes from tree
     const nodes: chrome.bookmarks.BookmarkTreeNode[] = [];
     const findNodes = (n: chrome.bookmarks.BookmarkTreeNode) => {
-      if (selectedIds.has(n.id)) nodes.push(n);
+      if (selectedIds.has(n.id) && !isProtectedNode(n)) nodes.push(n);
       n.children?.forEach(findNodes);
     };
     tree.forEach(findNodes);
+    if (nodes.length === 0) return;
     set({
       moveTargetNodes: nodes,
       moveTargetNode: nodes[0] ?? null,
@@ -556,7 +559,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       children: n.children?.map(deepClone),
     });
     const findNodes = (n: chrome.bookmarks.BookmarkTreeNode) => {
-      if (selectedIds.has(n.id)) {
+      if (selectedIds.has(n.id) && !isProtectedNode(n)) {
         nodes.push(deepClone(n));
         return; // don't recurse into selected nodes
       }
@@ -565,6 +568,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     tree.forEach(findNodes);
 
     // Save snapshots before deletion for undo
+    if (nodes.length === 0) return;
     const savedSnapshots = [...nodes];
     let count = 0;
 
@@ -572,7 +576,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     set({ _suppressReload: true });
     try {
       for (const n of nodes) {
-        if (isProtectedNode(n.id)) continue;
+        if (isProtectedNode(n)) continue;
         if (isFolder(n)) {
           await removeBookmarkTree(n.id);
         } else {
@@ -606,7 +610,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
               (a, b) => (a.index ?? 0) - (b.index ?? 0)
             );
             for (const snap of sorted) {
-              if (isProtectedNode(snap.id)) continue;
+              if (isProtectedNode(snap)) continue;
               if (isFolder(snap)) {
                 await get().undoDeleteFolder(
                   snap.title,

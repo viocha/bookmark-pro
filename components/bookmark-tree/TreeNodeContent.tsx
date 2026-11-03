@@ -19,8 +19,6 @@ import {
 } from '@/components/ui/context-menu';
 import {
   ChevronRight,
-  FolderOpen,
-  Folder,
   FileText,
   Pencil,
   Trash2,
@@ -40,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { getTruncatedTitleProps } from '@/lib/truncated-title';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import { BookmarkText } from '@/components/BookmarkText';
 
 interface TreeNodeContentProps {
@@ -98,7 +97,7 @@ export function TreeNodeContent({
 
   const { node, depth, isFolder: folder } = item;
   const expanded = expandedIds.has(node.id);
-  const isProtected = isProtectedNode(node.id);
+  const isProtected = isProtectedNode(node);
   const isSelected = selectedIds.has(node.id);
   const hasMultiSelection = selectedIds.size > 1;
 
@@ -390,51 +389,40 @@ export function TreeNodeContent({
       {!isOverlay && (
         <span style={{ width: `${indent}px` }} className="shrink-0" />
       )}
-      <span
-        className="flex items-center justify-center size-4 shrink-0 ml-0.5"
-        onClick={
-          folder
-            ? (e: React.MouseEvent) => {
-                e.stopPropagation();
-                toggleExpand(node.id);
-              }
-            : undefined
-        }
-      >
-        {folder ? (
-          <ChevronRight
-            className={cn(
-              'size-3 text-muted-foreground transition-transform duration-200',
-              expanded && 'rotate-90'
-            )}
-          />
-        ) : null}
-      </span>
-      <span className="flex items-center justify-center size-4 shrink-0">
-        {multiSelectMode && !isProtected ? (
-          <span className="relative flex items-center justify-center size-4">
+      {multiSelectMode && (
+        <span className="flex items-center justify-center size-4 shrink-0">
+          {!isProtected && (
             <Checkbox
               checked={isSelected}
               aria-label={`选择 ${node.title || '(无标题)'}`}
               onClick={(e) => e.stopPropagation()}
               onCheckedChange={() => toggleSelect(node.id)}
             />
-            {!folder && node.url && (
-              <img
-                src={`chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(node.url)}&size=16`}
-                className="size-2.5 absolute -bottom-0.5 -right-0.5 rounded-sm"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            )}
-          </span>
-        ) : folder ? (
-          expanded ? (
-            <FolderOpen className="size-3.5 text-yellow-600" />
-          ) : (
-            <Folder className="size-3.5 text-yellow-600" />
-          )
+          )}
+        </span>
+      )}
+      <span className="flex items-center justify-center h-4 w-6 shrink-0 ml-0.5">
+        {folder ? (
+          <Button
+            variant="tree"
+            size="tree"
+            aria-label={`${expanded ? '折叠' : '展开'} ${node.title || '(无标题)'}`}
+            aria-expanded={expanded}
+            disabled={isRenaming || isOverlay}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpand(node.id);
+            }}
+          >
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground transition-transform duration-200',
+                expanded && 'rotate-90'
+              )}
+            />
+          </Button>
         ) : node.url ? (
           <>
             <img
@@ -476,7 +464,7 @@ export function TreeNodeContent({
       ) : (
         <>
           {folder ? (
-            <span className="w-fit max-w-full truncate min-w-0 ml-0.5" {...getTruncatedTitleProps(node.title || '(无标题)')}>
+            <span className="w-fit max-w-full truncate min-w-0" {...getTruncatedTitleProps(node.title || '(无标题)')}>
               {node.title || '(无标题)'}
             </span>
           ) : (
@@ -497,7 +485,7 @@ export function TreeNodeContent({
       <div
         className={cn(
           'flex items-center min-h-7 py-1 pr-3 cursor-pointer select-none rounded-md transition-colors',
-          'hover:bg-accent/60 active:bg-accent',
+          'hover:bg-accent/60',
           'text-xs gap-0.5 overflow-hidden'
         )}
       >
@@ -629,7 +617,7 @@ export function TreeNodeContent({
     'text-xs gap-0.5 overflow-hidden',
     isSelected
       ? 'bg-primary/10 hover:bg-primary/15'
-      : 'hover:bg-accent/60 active:bg-accent',
+      : 'hover:bg-accent/60',
     contextActive && (isSelected ? 'bg-primary/15' : 'bg-accent/60')
   );
   const triggerDataProps = {

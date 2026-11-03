@@ -59,9 +59,8 @@ export interface DropIndicator {
 }
 
 export const TREE_INDENT_PX = 14;
-// Anchor line/indent calculations to the icon column LEFT edge:
-// indent spacer + chevron left margin (~2px) + chevron column (~16px) + inter-item gap (~2px).
-export const TREE_ICON_ANCHOR_OFFSET_PX = 20;
+// 拖放指示线跟随图标后的名称列：左侧间距约 2px、图标列 24px、列间距约 2px。
+export const TREE_ICON_ANCHOR_OFFSET_PX = 28;
 /** Horizontal drag distance (px) required to change one indent level during drag */
 export const DRAG_INDENT_SENSITIVITY_PX = 40;
 

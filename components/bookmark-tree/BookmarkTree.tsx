@@ -60,7 +60,7 @@ function DndTreeNode({
   onRenameCancel: () => void;
   onRenameTitleChange: (v: string) => void;
 }) {
-  const isProtected = isProtectedNode(item.id);
+  const isProtected = isProtectedNode(item.node);
 
   const {
     attributes,
@@ -138,16 +138,6 @@ export function BookmarkTree() {
   const [renamingTitle, setRenamingTitle] = useState('');
   const scrollRestoredRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Auto-expand/collapse: when dragging over a folder's "inside" zone for 2s,
-  // toggle its expanded state so user can navigate into / collapse children.
-  const hoverFolderRef = useRef<string | null>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const clearHoverTimer = useCallback(() => {
-    clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = undefined;
-    hoverFolderRef.current = null;
-  }, []);
 
   // Track real cursor position in viewport coordinates.
   // dnd-kit's event.delta includes scroll compensation, making
@@ -285,8 +275,8 @@ export function BookmarkTree() {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const id = String(event.active.id);
-    if (isProtectedNode(id)) return;
     const item = flatItems.find((i) => i.id === id);
+    if (!item || isProtectedNode(item.node)) return;
     dragStartRef.current = {
       x: pointerRef.current.x,
       depth: item?.depth ?? 0,
@@ -299,14 +289,12 @@ export function BookmarkTree() {
       const { over } = event;
       if (!over || !activeId) {
         setDropIndicator(null);
-        clearHoverTimer();
         return;
       }
 
       const overId = String(over.id);
       if (overId === activeId) {
         setDropIndicator(null);
-        clearHoverTimer();
         return;
       }
 
@@ -315,7 +303,6 @@ export function BookmarkTree() {
       const overEl = document.querySelector<HTMLElement>(`[data-node-id="${overId}"]`);
       if (!overEl) {
         setDropIndicator(null);
-        clearHoverTimer();
         return;
       }
       const overRect = overEl.getBoundingClientRect();
@@ -336,26 +323,8 @@ export function BookmarkTree() {
         dragStartRef.current.depth
       );
       setDropIndicator(indicator);
-
-      // Auto-expand/collapse: start a 2s timer when hovering inside a folder
-      const overItem = flatItems.find((i) => i.id === overId);
-      if (indicator?.zone === 'inside' && overItem?.isFolder) {
-        // Only start timer if this is a different folder than we were already timing
-        if (hoverFolderRef.current !== overId) {
-          clearHoverTimer();
-          hoverFolderRef.current = overId;
-          hoverTimerRef.current = setTimeout(() => {
-            const store = useBookmarkStore.getState();
-            store.toggleExpand(overId);
-            hoverFolderRef.current = null;
-          }, 2000);
-        }
-      } else {
-        // Cursor moved out of "inside" zone — cancel any pending timer
-        clearHoverTimer();
-      }
     },
-    [flatItems, activeId, clearHoverTimer]
+    [flatItems, activeId]
   );
 
   const handleDragEnd = useCallback(
@@ -365,12 +334,12 @@ export function BookmarkTree() {
 
       setActiveId(null);
       setDropIndicator(null);
-      clearHoverTimer();
 
       if (!over || active.id === over.id) return;
 
       const activeIdStr = String(active.id);
-      if (isProtectedNode(activeIdStr)) return;
+      const activeNode = flatItems.find(item => item.id === activeIdStr)?.node;
+      if (!activeNode || isProtectedNode(activeNode)) return;
       if (!currentIndicator) return;
 
       // When dropping inside a folder, normalize children and compute correct index
@@ -438,13 +407,12 @@ export function BookmarkTree() {
         await loadTree();
       }
     },
-    [moveNode, dropIndicator, flatItems, clearHoverTimer]
+    [moveNode, dropIndicator, flatItems]
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
     setDropIndicator(null);
-    clearHoverTimer();
     // dnd-kit 在 Esc 取消拖拽后会释放指针捕获，后续的 pointerup 仍会触发
     // click 事件并打开书签。在此注册一次性 capture 阶段拦截器来阻止该 click。
     window.addEventListener(
@@ -452,7 +420,7 @@ export function BookmarkTree() {
       (e) => { e.preventDefault(); e.stopPropagation(); },
       { capture: true, once: true }
     );
-  }, [clearHoverTimer]);
+  }, []);
 
   const handleRenameStart = useCallback((id: string, title: string) => {
     setRenamingId(id);

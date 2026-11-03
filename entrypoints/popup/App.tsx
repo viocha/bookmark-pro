@@ -529,7 +529,8 @@ export default function App() {
 
   const handleDeleteFolder = useCallback(
     async (id: string) => {
-      if (isProtectedNode(id)) return;
+      const folder = findFolderNode(folderTree, id);
+      if (!folder || isProtectedNode(folder)) return;
       try {
         // Snapshot full subtree for undo
         const [nodeInfo] = await chrome.bookmarks.getSubTree(id);
@@ -586,7 +587,7 @@ export default function App() {
         console.error('[Bookmark Pro Popup] delete folder error:', err);
       }
     },
-    [selectedId, refreshTree]
+    [selectedId, refreshTree, folderTree]
   );
 
   // ─── Render ───

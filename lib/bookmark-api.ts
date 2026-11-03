@@ -56,11 +56,23 @@ export function isFolder(node: chrome.bookmarks.BookmarkTreeNode): boolean {
   return !node.url;
 }
 
-// Root node IDs that cannot be modified
-const PROTECTED_IDS = new Set(['0', '1', '2', '3']);
+/** 根目录、浏览器固定目录及受管理节点不能选中或修改。 */
+export function isProtectedNode(
+  node: Pick<chrome.bookmarks.BookmarkTreeNode, 'id' | 'parentId' | 'folderType' | 'unmodifiable'>,
+): boolean {
+  return node.id === '0' || node.parentId === '0' || !!node.folderType || !!node.unmodifiable;
+}
 
-export function isProtectedNode(id: string): boolean {
-  return PROTECTED_IDS.has(id);
+export function getProtectedNodeIds(tree: chrome.bookmarks.BookmarkTreeNode[]): Set<string> {
+  const ids = new Set<string>();
+  const visit = (nodes: chrome.bookmarks.BookmarkTreeNode[]) => {
+    for (const node of nodes) {
+      if (isProtectedNode(node)) ids.add(node.id);
+      if (node.children) visit(node.children);
+    }
+  };
+  visit(tree);
+  return ids;
 }
 
 // Get all bookmark URLs in a folder (recursively)
@@ -108,9 +120,9 @@ export async function getBookmarkPath(nodeId: string): Promise<string> {
   while (currentId) {
     const nodes: chrome.bookmarks.BookmarkTreeNode[] = await chrome.bookmarks.get(currentId);
     const node: chrome.bookmarks.BookmarkTreeNode | undefined = nodes[0];
-    if (!node || PROTECTED_IDS.has(node.id) && node.id === '0') break;
+    if (!node || node.id === '0') break;
     if (node.title) parts.unshift(node.title);
-    else if (PROTECTED_IDS.has(node.id)) {
+    else if (isProtectedNode(node)) {
       // Give root folders readable names
       const names: Record<string, string> = { '1': '书签栏', '2': '其他书签', '3': '移动设备书签' };
       parts.unshift(names[node.id] ?? '');

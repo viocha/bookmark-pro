@@ -197,7 +197,7 @@ function SearchFolderItem({
   onDelete: () => void;
   onCreateFolder: () => void;
 }) {
-  const isProtected = isProtectedNode(node.id);
+  const isProtected = isProtectedNode(node);
   const { addBookmark, openAddBookmarkDialog } = useBookmarkStore.getState();
   const bookmarkInsertPosition = useSettings(s => s.bookmarkInsertPosition);
 
